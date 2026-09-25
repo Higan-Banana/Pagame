@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "262391299847",
+    "project_id": "pagame-b3506",
+    "storage_bucket": "pagame-b3506.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:262391299847:android:950bc389179d328c814fa2",
+        "android_client_info": {
+          "package_name": "gt.pagame.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAC1BvE0E2ercwp1aUdPb3Q7NbD-8LBYwo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

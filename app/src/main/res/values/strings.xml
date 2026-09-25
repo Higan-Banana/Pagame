@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">Pagame</string>
+    <string name="app_tagline">Divide cuentas y gastos entre amigos en menos de un minuto</string>
+    <string name="available_in_guatemala">Disponible en Guatemala (Q)</string>
+    <string name="login_title">Iniciar sesión</string>
+    <string name="register_title">Crear cuenta</string>
+    <string name="events_title">Eventos</string>
+    <string name="friends_title">Amigos</string>
+    <string name="options_title">Opciones</string>
 </resources>
