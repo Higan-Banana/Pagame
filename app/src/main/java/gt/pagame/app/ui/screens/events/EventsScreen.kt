@@ -39,7 +39,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import gt.pagame.app.data.model.BalanceStatus
 import gt.pagame.app.data.model.EventItem
 import gt.pagame.app.ui.components.AvatarBubble
@@ -69,37 +68,7 @@ fun EventsScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // Header Section
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 24.dp, vertical = 6.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Eventos",
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-
-                }
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Text(
-                    text = "Divide cuentas fácilmente con tu círculo",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
+            Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.page, vertical = Spacing.small)) {
                 // Metadata row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -108,14 +77,14 @@ fun EventsScreen(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.small)
                     ) {
                         Text(
                             text = "MIS EVENTOS",
-                            fontSize = 12.sp,
+                            fontSize = MaterialTheme.typography.bodySmall.fontSize,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 0.5.sp
+                            letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing
                         )
                         Box(
                             modifier = Modifier
@@ -126,7 +95,7 @@ fun EventsScreen(
                         ) {
                             Text(
                                 text = "${uiState.events.size}",
-                                fontSize = 11.sp,
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -137,11 +106,11 @@ fun EventsScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .padding(horizontal = Spacing.compact, vertical = Spacing.tiny)
                     ) {
                         Text(
                             text = "Moneda: ${uiState.currency.displayName}",
-                            fontSize = 11.sp,
+                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -149,7 +118,7 @@ fun EventsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(Spacing.compact))
 
             PagamePullToRefresh(Modifier.weight(1f).fillMaxWidth()) {
                 // Content: Event List or Empty State
@@ -163,9 +132,9 @@ fun EventsScreen(
                         state = eventListState,
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 20.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                        contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp)
+                            .padding(horizontal = Spacing.large),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.medium),
+                        contentPadding = PaddingValues(top = Spacing.tiny, bottom = Spacing.bottomClearance)
                     ) {
                         items(uiState.events, key = { it.id }) { event ->
                             EventCard(
@@ -185,8 +154,8 @@ fun EventsScreen(
             ) {
                 Column(
                     modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
-                        .padding(start = 24.dp, top = 22.dp, end = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .padding(start = Spacing.page, top = Spacing.page, end = Spacing.page),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.medium)
                 ) {
                     Text(
                         text = "Nuevo Evento",
@@ -217,10 +186,10 @@ fun EventsScreen(
                     ) {
                         Text(
                             text = "¿QUIÉN VA?",
-                            fontSize = 12.sp,
+                            fontSize = MaterialTheme.typography.bodySmall.fontSize,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 0.5.sp
+                            letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing
                         )
                         Surface(
                             shape = RoundedCornerShape(50),
@@ -232,8 +201,8 @@ fun EventsScreen(
                         ) {
                             Text(
                                 text = "${uiState.selectedFriendIds.size} seleccionados",
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                                fontSize = 11.sp,
+                                modifier = Modifier.padding(horizontal = Spacing.small, vertical = Spacing.tiny),
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -243,7 +212,7 @@ fun EventsScreen(
                     OutlinedTextField(
                         value = uiState.friendSearchQuery,
                         onValueChange = viewModel::updateFriendSearch,
-                        placeholder = { Text("Buscar por nombre o código", fontSize = 12.sp) },
+                        placeholder = { Text("Buscar por nombre o código", fontSize = MaterialTheme.typography.bodySmall.fontSize) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Search,
@@ -267,18 +236,18 @@ fun EventsScreen(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
                             .clickable { viewModel.openAddFriendDialog() }
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                            .padding(horizontal = Spacing.tiny, vertical = Spacing.tiny),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = "¿Aún no son amigos? ",
-                            fontSize = 11.sp,
+                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = "Agregar amigo",
-                            fontSize = 11.sp,
+                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -286,10 +255,10 @@ fun EventsScreen(
 
                     TextButton(onClick = viewModel::openRequests, shape = RoundedCornerShape(50),
                         modifier = Modifier.align(Alignment.End)) {
-                        Text("Solicitudes (${uiState.receivedCount})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Solicitudes (${uiState.receivedCount})", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold)
                     }
                     uiState.friendNotice?.let { notice ->
-                        Text(notice, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                        Text(notice, fontSize = MaterialTheme.typography.bodySmall.fontSize, color = MaterialTheme.colorScheme.primary)
                     }
 
                     val selectedIds = remember(uiState.selectedFriendIds) {
@@ -303,7 +272,7 @@ fun EventsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(7.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.small)
                         ) {
                             selectedFriends.forEach { friend ->
                                 Row(
@@ -316,13 +285,13 @@ fun EventsScreen(
                                             RoundedCornerShape(50)
                                         )
                                         .clickable { viewModel.toggleFriendSelection(friend.id) }
-                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                        .padding(horizontal = Spacing.compact, vertical = Spacing.small),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.tiny)
                                 ) {
                                     Text(
                                         text = friend.name.substringBefore(" "),
-                                        fontSize = 12.sp,
+                                        fontSize = MaterialTheme.typography.bodySmall.fontSize,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -353,7 +322,7 @@ fun EventsScreen(
                             .clip(RoundedCornerShape(16.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f))
                             .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
-                            .padding(horizontal = 6.dp, vertical = 4.dp)
+                            .padding(horizontal = Spacing.small, vertical = Spacing.tiny)
                     ) {
                         items(filteredFriends, key = { it.id }) { friend ->
                             val isSelected = friend.id in selectedIds
@@ -363,9 +332,9 @@ fun EventsScreen(
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
                                     .clickable { viewModel.toggleFriendSelection(friend.id) }
-                                    .padding(horizontal = 8.dp, vertical = 7.dp),
+                                    .padding(horizontal = Spacing.small, vertical = Spacing.small),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.compact)
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -378,16 +347,16 @@ fun EventsScreen(
                                 ) {
                                     Text(
                                         friend.initial,
-                                        fontSize = 12.sp,
+                                        fontSize = MaterialTheme.typography.bodySmall.fontSize,
                                         fontWeight = FontWeight.Bold,
                                         color = avatarContent
                                     )
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(friend.name, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                                    Text(friend.name, fontSize = MaterialTheme.typography.bodyMedium.fontSize, fontWeight = FontWeight.Bold)
                                     Text(
                                         friend.codeOrStatus,
-                                        fontSize = 10.sp,
+                                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -404,25 +373,25 @@ fun EventsScreen(
                 }
 
                 HorizontalDivider(
-                    modifier = Modifier.padding(top = 16.dp),
+                    modifier = Modifier.padding(top = Spacing.medium),
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
                 )
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                        .padding(horizontal = Spacing.large, vertical = Spacing.medium),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = { viewModel.closeCreateDialog() }) {
                         Text("Cancelar", fontWeight = FontWeight.Bold)
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(Spacing.small))
                     Button(
                         onClick = { viewModel.createEvent() },
                         enabled = uiState.newEventTitle.isNotBlank() && !uiState.busy,
                         shape = RoundedCornerShape(50),
-                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 11.dp)
+                        contentPadding = PaddingValues(horizontal = Spacing.page, vertical = Spacing.compact)
                     ) {
                         Text("Crear", fontWeight = FontWeight.ExtraBold)
                     }
@@ -458,8 +427,8 @@ fun EventCard(
             .shadow(
                 elevation = 2.dp,
                 shape = RoundedCornerShape(24.dp),
-                ambientColor = Color(0xFF131B26).copy(alpha = 0.04f),
-                spotColor = Color(0xFF131B26).copy(alpha = 0.06f)
+                ambientColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f),
+                spotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
             )
             .clickable { onClick() },
         shape = RoundedCornerShape(24.dp),
@@ -471,7 +440,7 @@ fun EventCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp)
+                .padding(Spacing.large)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -480,7 +449,7 @@ fun EventCard(
             ) {
                 Row(
                     modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.medium),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Category Icon Squircle
@@ -496,7 +465,7 @@ fun EventCard(
                         Text(
                             text = titleInitial(event.title),
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontWeight = FontWeight.Bold, fontSize = 24.sp
+                            fontWeight = FontWeight.Bold, fontSize = MaterialTheme.typography.headlineMedium.fontSize
                         )
                     }
 
@@ -508,23 +477,23 @@ fun EventCard(
                             color = MaterialTheme.colorScheme.onSurface
                         )
 
-                        Spacer(modifier = Modifier.height(3.dp))
+                        Spacer(modifier = Modifier.height(Spacing.tiny))
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.tiny)
                         ) {
                             if (event.isToday) {
                                 Box(
                                     modifier = Modifier
                                         .size(6.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF10B981))
+                                        .background(MaterialTheme.pagameColors.successContent)
                                 )
                             }
                             Text(
                                 text = "${event.createdAtLabel}\n${event.participantCount} participantes\nCreado por: ${event.createdByName}",
-                                fontSize = 11.sp,
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -534,12 +503,12 @@ fun EventCard(
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "GASTO TOTAL",
-                        fontSize = 10.sp,
+                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(Spacing.tiny))
                     Text(
                         text = money((event.totalAmount * 100).roundToLong(), event.currency),
                         style = MaterialTheme.typography.titleLarge,
@@ -549,7 +518,7 @@ fun EventCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(Spacing.medium))
 
             // Bottom row: Avatar stack & Status chip
             Row(
@@ -558,7 +527,7 @@ fun EventCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Stack of participant avatars
-                Row(horizontalArrangement = Arrangement.spacedBy((-6).dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.avatarOverlap)) {
                     event.participantIds.take(3).forEach { uid -> ProfileAvatar(uid, 28.dp) }
                     if (event.participantIds.size > 3) AvatarBubble(
                         text = "+${event.participantIds.size - 3}",
@@ -584,7 +553,7 @@ fun EventsEmptyState(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(32.dp),
+            .padding(Spacing.section),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -603,7 +572,7 @@ fun EventsEmptyState(
             )
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(Spacing.large))
 
         Text(
             text = "No tienes eventos activos",
@@ -612,7 +581,7 @@ fun EventsEmptyState(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(Spacing.small))
 
         Text(
             text = "Crea tu primer evento para comenzar a dividir salidas, viajes o compras con tus amigos.",
@@ -621,16 +590,16 @@ fun EventsEmptyState(
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(Spacing.large))
 
         Button(
             onClick = onCreateClick,
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             shape = RoundedCornerShape(16.dp),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+            contentPadding = PaddingValues(horizontal = Spacing.page, vertical = Spacing.compact)
         ) {
             Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(Spacing.small))
             Text("Crear nuevo evento", fontWeight = FontWeight.Bold)
         }
     }

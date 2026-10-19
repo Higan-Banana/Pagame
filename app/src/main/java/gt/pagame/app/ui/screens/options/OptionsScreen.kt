@@ -37,7 +37,6 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import gt.pagame.app.data.model.AppThemeMode
 import androidx.compose.ui.graphics.SolidColor
 import gt.pagame.app.ui.components.AnimatedPagameFloatingNotice
@@ -67,45 +66,18 @@ fun OptionsScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 20.dp)
+                .padding(bottom = Spacing.large)
         ) {
 
-            // Header Row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Opciones",
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Perfil, preferencias y cuenta",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-
-            }
-
             if (!connected) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+                Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.page, vertical = Spacing.small),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.small)) {
                     Icon(Icons.Default.WifiOff, contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                     Text("Sin conexión · Los datos pueden estar desactualizados",
@@ -113,13 +85,13 @@ fun OptionsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(Spacing.medium))
 
             // 1. Profile Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = Spacing.large),
                 shape = cardShape,
                 colors = cardColors,
                 border = cardBorder
@@ -127,9 +99,9 @@ fun OptionsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(Spacing.medium),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.medium)
                 ) {
                     // Persistent profile color
                     Box(Modifier.clickable { colorExpanded = true }) { ProfileAvatar(uiState.user.id, 58.dp) }
@@ -137,33 +109,33 @@ fun OptionsScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = uiState.user.name,
-                            fontSize = 16.sp,
+                            fontSize = MaterialTheme.typography.titleMedium.fontSize,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(Spacing.tiny))
                         Text(
                             text = uiState.user.email,
-                            fontSize = 11.sp,
+                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(Spacing.small))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.tiny)
                         ) {
                             TextButton(onClick = viewModel::openNameDialog, enabled = !uiState.busy,
                                 modifier = Modifier.weight(1f), shape = RoundedCornerShape(50),
-                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)) {
-                                Text("Editar nombre", fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                                contentPadding = PaddingValues(horizontal = Spacing.tiny, vertical = Spacing.small)) {
+                                Text("Editar nombre", fontWeight = FontWeight.Bold, fontSize = MaterialTheme.typography.bodySmall.fontSize,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                             }
                             TextButton(onClick = { colorExpanded = true }, enabled = !uiState.busy,
                                 modifier = Modifier.weight(1f), shape = RoundedCornerShape(50),
-                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)) {
-                                Text("Cambiar color", fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                                contentPadding = PaddingValues(horizontal = Spacing.tiny, vertical = Spacing.small)) {
+                                Text("Cambiar color", fontWeight = FontWeight.Bold, fontSize = MaterialTheme.typography.bodySmall.fontSize,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                             }
                         }
@@ -172,13 +144,13 @@ fun OptionsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Spacing.compact))
 
             // 2. Friend Code Row
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = Spacing.large),
                 shape = cardShape,
                 colors = cardColors,
                 border = cardBorder
@@ -186,13 +158,13 @@ fun OptionsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                        .padding(horizontal = Spacing.medium, vertical = Spacing.medium),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.compact)
                     ) {
                         Box(
                             modifier = Modifier
@@ -212,15 +184,15 @@ fun OptionsScreen(
                         Column {
                             Text(
                                 text = "TU CÓDIGO DE AMIGO",
-                                fontSize = 11.sp,
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                letterSpacing = 0.5.sp
+                                letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(Spacing.tiny))
                             Text(
                                 text = uiState.user.friendCode,
-                                fontSize = 16.sp,
+                                fontSize = MaterialTheme.typography.titleMedium.fontSize,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -249,20 +221,20 @@ fun OptionsScreen(
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
                             )
                         ),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        contentPadding = PaddingValues(horizontal = Spacing.compact, vertical = Spacing.small)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ContentCopy,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Copiar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(Spacing.small))
+                        Text("Copiar", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold)
                     }
                 }
                 TextButton(
                     enabled = uiState.user.friendCode.isNotBlank(),
-                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 6.dp),
+                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = Spacing.small),
                     onClick = {
                         val share = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
@@ -272,26 +244,26 @@ fun OptionsScreen(
                     }
                 ) {
                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Compartir código", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(Spacing.small))
+                    Text("Compartir código", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold)
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(Spacing.large))
 
             // 3. General Preferences Section
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = Spacing.large)
             ) {
                 Text(
                     text = "PREFERENCIAS GENERALES",
-                    fontSize = 11.sp,
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.8.sp,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+                    letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing,
+                    modifier = Modifier.padding(start = Spacing.tiny, bottom = Spacing.small)
                 )
 
                 Card(
@@ -303,27 +275,27 @@ fun OptionsScreen(
                     Column {
                         PreferenceRow(
                             icon = Icons.Default.Payments,
-                            iconBg = Color(0xFFE8F7EE), iconColor = Color(0xFF137A50),
+                            iconBg = MaterialTheme.pagameColors.successContainer, iconColor = MaterialTheme.pagameColors.successContent,
                             title = "Moneda",
                             trailing = {
                                 Box {
                                     Row(
                                         modifier = Modifier.clip(RoundedCornerShape(8.dp))
                                             .clickable(enabled = !uiState.busy) { currencyExpanded = true }
-                                            .padding(vertical = 6.dp),
+                                            .padding(vertical = Spacing.small),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(6.dp))
                                                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                                .padding(horizontal = Spacing.small, vertical = Spacing.tiny)
                                         ) {
-                                            Text(uiState.currency.displayName, fontSize = 12.sp,
+                                            Text(uiState.currency.displayName, fontSize = MaterialTheme.typography.bodySmall.fontSize,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onSurface)
                                         }
-                                        Spacer(Modifier.width(4.dp))
+                                        Spacer(Modifier.width(Spacing.tiny))
                                         Icon(Icons.Default.ArrowDropDown, contentDescription = "Elegir moneda",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(18.dp))
@@ -337,7 +309,7 @@ fun OptionsScreen(
                                         ) {
                                             Currency.entries.forEach { currency ->
                                                 DropdownMenuItem(
-                                                    text = { Text(currency.displayName, fontSize = 12.sp, fontWeight = FontWeight.Bold) },
+                                                    text = { Text(currency.displayName, fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold) },
                                                     enabled = !uiState.busy,
                                                     trailingIcon = {
                                                         if (currency == uiState.currency) Icon(Icons.Default.Check,
@@ -353,30 +325,30 @@ fun OptionsScreen(
                             }, onClick = { if (!uiState.busy) currencyExpanded = true }
                         )
                         Text("Se aplica a eventos nuevos; no convierte importes existentes.",
-                            fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+                            fontSize = MaterialTheme.typography.labelMedium.fontSize, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = Spacing.medium, vertical = Spacing.small))
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
                         // Tema
                         PreferenceRow(
                             icon = Icons.Default.LightMode,
-                            iconBg = Color(0xFFFEF3C7),
-                            iconColor = Color(0xFFD97706),
+                            iconBg = MaterialTheme.pagameColors.warningContainer,
+                            iconColor = MaterialTheme.pagameColors.warningContent,
                             title = "Tema",
                             trailing = {
                                 Box {
                                     Row(
                                         modifier = Modifier.clip(RoundedCornerShape(8.dp))
                                             .clickable(enabled = !uiState.busy) { themeExpanded = true }
-                                            .padding(vertical = 6.dp),
+                                            .padding(vertical = Spacing.small),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(Spacing.tiny)
                                     ) {
                                         Box(Modifier.clip(RoundedCornerShape(6.dp))
                                             .background(MaterialTheme.colorScheme.surfaceVariant)
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)) {
-                                            Text(themeLabel(uiState.theme), fontSize = 12.sp,
+                                            .padding(horizontal = Spacing.small, vertical = Spacing.tiny)) {
+                                            Text(themeLabel(uiState.theme), fontSize = MaterialTheme.typography.bodySmall.fontSize,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onSurface)
                                         }
@@ -393,7 +365,7 @@ fun OptionsScreen(
                                         ) {
                                             AppThemeMode.entries.forEach { theme ->
                                                 DropdownMenuItem(
-                                                    text = { Text(themeLabel(theme), fontSize = 12.sp,
+                                                    text = { Text(themeLabel(theme), fontSize = MaterialTheme.typography.bodySmall.fontSize,
                                                         fontWeight = FontWeight.Bold) },
                                                     enabled = !uiState.busy,
                                                     trailingIcon = {
@@ -416,10 +388,10 @@ fun OptionsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.medium))
 
             Card(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.large),
                 shape = cardShape,
                 colors = cardColors,
                 border = cardBorder
@@ -434,13 +406,13 @@ fun OptionsScreen(
                     onClick = { if (!uiState.busy) passwordExpanded = true }
                 )
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacing.medium))
 
             // 4. Cerrar Sesión Row
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = Spacing.large)
                     .clickable { viewModel.openLogoutDialog() },
                 shape = cardShape,
                 colors = cardColors,
@@ -449,13 +421,13 @@ fun OptionsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                        .padding(horizontal = Spacing.medium, vertical = Spacing.medium),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.medium)
                     ) {
                         Box(
                             modifier = Modifier
@@ -475,14 +447,14 @@ fun OptionsScreen(
                         Column {
                             Text(
                                 text = "Cerrar sesión",
-                                fontSize = 14.sp,
+                                fontSize = MaterialTheme.typography.labelLarge.fontSize,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(Spacing.tiny))
                             Text(
                                 text = "Podrás volver a ingresar en cualquier momento",
-                                fontSize = 11.sp,
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -497,7 +469,7 @@ fun OptionsScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Spacing.page))
 
             // 5. Eliminar cuenta text link
             Column(
@@ -507,13 +479,13 @@ fun OptionsScreen(
                 Text(
                     text = "Eliminar cuenta",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
+                    fontSize = MaterialTheme.typography.bodySmall.fontSize,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textDecoration = TextDecoration.Underline,
                     modifier = Modifier.clickable { viewModel.openDeleteDialog() }
                 )
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(Spacing.small))
 
 
             }
@@ -524,7 +496,7 @@ fun OptionsScreen(
                 onDismissRequest = viewModel::closeNameDialog,
                 title = { Text("Editar nombre") },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.compact)) {
                         OutlinedTextField(
                             value = uiState.editedName, onValueChange = viewModel::editName,
                             label = { Text("Nombre") }, singleLine = true,
@@ -538,11 +510,11 @@ fun OptionsScreen(
                 confirmButton = {
                     Button(onClick = viewModel::saveName,
                         enabled = connected && !uiState.busy && uiState.editedName.isNotBlank()) {
-                        Text(if (uiState.busy) "Guardando…" else "Guardar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(if (uiState.busy) "Guardando…" else "Guardar", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = { TextButton(onClick = viewModel::closeNameDialog,
-                    enabled = !uiState.busy) { Text("Cancelar", fontSize = 12.sp, fontWeight = FontWeight.Bold) } },
+                    enabled = !uiState.busy) { Text("Cancelar", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold) } },
                 containerColor = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(20.dp)
             )
@@ -557,9 +529,9 @@ fun OptionsScreen(
                 confirmButton = {
                     Button(enabled = connected && !uiState.busy, onClick = {
                         viewModel.sendPasswordLink { passwordExpanded = false }
-                    }) { Text(if (uiState.busy) "Enviando…" else "Enviar enlace", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                    }) { Text(if (uiState.busy) "Enviando…" else "Enviar enlace", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold) }
                 },
-                dismissButton = { TextButton(enabled = !uiState.busy, onClick = { passwordExpanded = false }) { Text("Cancelar", fontSize = 12.sp, fontWeight = FontWeight.Bold) } },
+                dismissButton = { TextButton(enabled = !uiState.busy, onClick = { passwordExpanded = false }) { Text("Cancelar", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold) } },
                 containerColor = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(20.dp)
             )
@@ -569,7 +541,7 @@ fun OptionsScreen(
             AlertDialog(onDismissRequest = { colorExpanded = false },
                 title = { Text("Color de tu perfil") },
                 text = {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.compact)) {
                         items(AvatarPalette.size) { index ->
                             val colors = AvatarPalette[index]
                             Surface(
@@ -584,7 +556,7 @@ fun OptionsScreen(
                             }
                         }
                     }
-                }, confirmButton = { TextButton(onClick = { colorExpanded = false }) { Text("Cerrar", fontSize = 12.sp, fontWeight = FontWeight.Bold) } })
+                }, confirmButton = { TextButton(onClick = { colorExpanded = false }) { Text("Cerrar", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold) } })
         }
 
         // Logout Confirmation Dialog
@@ -595,7 +567,7 @@ fun OptionsScreen(
                 text = {
                     Text(
                         "Puedes volver a entrar con tu correo y contraseña cuando quieras. Tus cuentas y grupos guardados se mantendrán sincronizados.",
-                        fontSize = 11.sp,
+                        fontSize = MaterialTheme.typography.labelMedium.fontSize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
@@ -606,12 +578,12 @@ fun OptionsScreen(
                             containerColor = MaterialTheme.colorScheme.error
                         )
                     ) {
-                        Text("Cerrar sesión", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Cerrar sesión", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.closeLogoutDialog() }) {
-                        Text("Cancelar", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Cancelar", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
                 shape = RoundedCornerShape(20.dp),
@@ -623,11 +595,11 @@ fun OptionsScreen(
         if (uiState.showDeleteDialog) {
             AlertDialog(
                 onDismissRequest = { viewModel.closeDeleteDialog() },
-                title = { Text("Eliminar tu cuenta", fontWeight = FontWeight.Bold, color = Color(0xFFDC2626)) },
+                title = { Text("Eliminar tu cuenta", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error) },
                 text = {
                     Text(
                         "Se eliminarán tu cuenta, perfil y lista de amigos. Primero debes dejar de pertenecer a todos los eventos. Esta acción no se puede deshacer.",
-                        fontSize = 11.sp,
+                        fontSize = MaterialTheme.typography.labelMedium.fontSize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
@@ -635,14 +607,14 @@ fun OptionsScreen(
                     Button(
                         onClick = { viewModel.confirmDelete(onLogoutSuccess) },
                         enabled = !uiState.busy,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) {
-                        Text("Eliminar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Eliminar", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.closeDeleteDialog() }) {
-                        Text("Cancelar", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Cancelar", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
                 shape = RoundedCornerShape(20.dp),
@@ -657,9 +629,9 @@ fun OptionsScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(
-                    bottom = 12.dp,
-                    start = 20.dp,
-                    end = 20.dp
+                    bottom = Spacing.compact,
+                    start = Spacing.large,
+                    end = Spacing.large
                 )
         )
     }
@@ -678,13 +650,13 @@ private fun PreferenceRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = Spacing.medium, vertical = Spacing.medium),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.medium)
         ) {
             Box(
                 modifier = Modifier
@@ -703,7 +675,7 @@ private fun PreferenceRow(
 
             Text(
                 text = title,
-                fontSize = 14.sp,
+                fontSize = MaterialTheme.typography.labelLarge.fontSize,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )

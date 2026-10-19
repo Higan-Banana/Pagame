@@ -1,5 +1,7 @@
 package gt.pagame.app.ui.components
 
+import gt.pagame.app.ui.theme.*
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import gt.pagame.app.data.repository.PagameRepository
 import gt.pagame.app.data.repository.userMessage
 import kotlinx.coroutines.CancellationException
@@ -56,7 +57,7 @@ fun FriendRequestsSheet(onDismiss: () -> Unit) {
         }
     }
     PagameBottomSheet(onDismissRequest = { if (busyId == null) onDismiss() }) {
-        Row(Modifier.fillMaxWidth().padding(start = 22.dp, end = 12.dp, top = 8.dp),
+        Row(Modifier.fillMaxWidth().padding(start = Spacing.page, end = Spacing.compact, top = Spacing.small),
             verticalAlignment = Alignment.CenterVertically) {
             Text("Solicitudes", Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.ExtraBold)
@@ -65,58 +66,58 @@ fun FriendRequestsSheet(onDismiss: () -> Unit) {
             }
         }
         Text("Al aceptar, ambos aparecerán en sus listas de amigos.",
-            Modifier.padding(horizontal = 22.dp, vertical = 8.dp), fontSize = 12.sp,
+            Modifier.padding(horizontal = Spacing.page, vertical = Spacing.small), fontSize = MaterialTheme.typography.bodySmall.fontSize,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         notice?.let {
-            Text(it, Modifier.padding(horizontal = 22.dp, vertical = 8.dp), fontSize = 12.sp,
+            Text(it, Modifier.padding(horizontal = Spacing.page, vertical = Spacing.small), fontSize = MaterialTheme.typography.bodySmall.fontSize,
                 color = MaterialTheme.colorScheme.primary)
         }
         LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false),
-            contentPadding = PaddingValues(start = 22.dp, end = 22.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            contentPadding = PaddingValues(start = Spacing.page, end = Spacing.page, bottom = Spacing.page),
+            verticalArrangement = Arrangement.spacedBy(Spacing.compact)) {
             item {
-                Text("RECIBIDAS (${received.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                Text("RECIBIDAS (${received.size})", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (received.isEmpty()) item {
-                Text("No tienes solicitudes pendientes.", fontSize = 12.sp,
-                    modifier = Modifier.padding(vertical = 12.dp))
+                Text("No tienes solicitudes pendientes.", fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                    modifier = Modifier.padding(vertical = Spacing.compact))
             }
             items(received + sent, key = { it.id }) { request ->
                 val incoming = request.recipientId == uid
                 if (!incoming && request.id == sent.firstOrNull()?.id) {
-                    Text("ENVIADAS (${sent.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 14.dp, bottom = 10.dp),
+                    Text("ENVIADAS (${sent.size})", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = Spacing.medium, bottom = Spacing.compact),
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 val otherId = request.otherId(uid.orEmpty())
                 val person = people[otherId]
                 Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
-                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(Spacing.medium)) {
                         Row(verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.compact)) {
                             ProfileAvatar(otherId, 42.dp)
                             Column(Modifier.weight(1f)) {
-                                Text(person?.name ?: "Cargando perfil…", fontSize = 14.sp,
+                                Text(person?.name ?: "Cargando perfil…", fontSize = MaterialTheme.typography.labelLarge.fontSize,
                                     fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 Text(if (incoming) "Quiere agregarte como amigo" else "Esperando su aceptación",
-                                    fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    fontSize = MaterialTheme.typography.bodySmall.fontSize, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             if (busyId == request.id) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                         }
-                        Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.End,
+                        Row(Modifier.fillMaxWidth().padding(top = Spacing.small), horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically) {
                             TextButton(onClick = { respond(request.id, false, incoming) }, enabled = busyId == null,
                                 shape = RoundedCornerShape(50)) {
-                                Text(if (incoming) "Rechazar" else "Cancelar solicitud", fontSize = 12.sp,
+                                Text(if (incoming) "Rechazar" else "Cancelar solicitud", fontSize = MaterialTheme.typography.bodySmall.fontSize,
                                     fontWeight = FontWeight.Bold)
                             }
                             if (incoming) {
-                                Spacer(Modifier.width(6.dp))
+                                Spacer(Modifier.width(Spacing.small))
                                 Button(onClick = { respond(request.id, true, true) }, enabled = busyId == null,
                                     shape = RoundedCornerShape(50)) {
-                                    Text("Aceptar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text("Aceptar", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }

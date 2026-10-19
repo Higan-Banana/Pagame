@@ -21,7 +21,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import gt.pagame.app.ui.components.PagameInputField
 import gt.pagame.app.ui.components.PagamePrimaryButton
 import gt.pagame.app.ui.theme.*
@@ -73,7 +72,7 @@ fun RegisterContent(
             .background(MaterialTheme.colorScheme.background)
             .safeDrawingPadding()
             .verticalScroll(scrollState)
-            .padding(bottom = 24.dp),
+            .padding(bottom = Spacing.page),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
@@ -81,7 +80,7 @@ fun RegisterContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp),
+                .padding(horizontal = Spacing.large, vertical = Spacing.small),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -108,11 +107,11 @@ fun RegisterContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .padding(horizontal = Spacing.page, vertical = Spacing.compact)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(Spacing.small)
             ) {
                 Text(
                     text = if (uiState.isLoading) "Creando cuenta…" else "Crear cuenta",
@@ -128,24 +127,24 @@ fun RegisterContent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Spacing.tiny))
 
             Text(
                 text = "Crea tu cuenta para empezar a dividir gastos entre amigos en segundos.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 19.sp
+                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.small))
 
         // Form fields
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(horizontal = Spacing.page),
+            verticalArrangement = Arrangement.spacedBy(Spacing.medium)
         ) {
             PagameInputField(
                 value = uiState.fullName,
@@ -173,7 +172,7 @@ fun RegisterContent(
                 headerTrailing = {
                     Text(
                         text = "Mínimo 6 caracteres",
-                        fontSize = 11.sp,
+                        fontSize = MaterialTheme.typography.labelMedium.fontSize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
@@ -202,7 +201,7 @@ fun RegisterContent(
                     if (uiState.passwordsMatch && uiState.confirmPassword.isNotEmpty()) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.tiny)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
@@ -212,7 +211,7 @@ fun RegisterContent(
                             )
                             Text(
                                 text = "Coinciden",
-                                fontSize = 11.sp,
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                                 fontWeight = FontWeight.SemiBold,
                                 color = StatusSuccessText
                             )
@@ -235,7 +234,7 @@ fun RegisterContent(
                 Text(
                     text = uiState.errorMessage,
                     color = MaterialTheme.colorScheme.error,
-                    fontSize = 12.sp
+                    fontSize = MaterialTheme.typography.bodySmall.fontSize
                 )
             }
 
@@ -243,12 +242,12 @@ fun RegisterContent(
                 text = if (uiState.isLoading) "Creando cuenta…" else "Crear cuenta",
                 enabled = !uiState.isLoading,
                 onClick = onRegisterClick,
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(top = Spacing.small)
             )
         }
 
         Spacer(modifier = Modifier.weight(1f, fill = false))
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(Spacing.roomy))
 
         // Footer
         Row(
@@ -257,21 +256,21 @@ fun RegisterContent(
         ) {
             Text(
                 text = "¿Ya tienes cuenta?",
-                fontSize = 12.sp,
+                fontSize = MaterialTheme.typography.bodySmall.fontSize,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(Spacing.tiny))
             Text(
                 text = "Inicia sesión",
-                fontSize = 12.sp,
+                fontSize = MaterialTheme.typography.bodySmall.fontSize,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable { onNavigateToLogin() }
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.small))
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Spacing.compact))
     }
 }

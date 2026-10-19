@@ -32,7 +32,6 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import gt.pagame.app.data.model.FriendItem
 import androidx.compose.material.icons.filled.CheckCircle
 import gt.pagame.app.ui.components.AnimatedPagameFloatingNotice
@@ -58,60 +57,31 @@ fun FriendsScreen(
         Column(modifier = Modifier
             .fillMaxSize()
         ) {
-            // Header Row
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(start = 20.dp, end = 8.dp, top = 6.dp, bottom = 6.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Amigos",
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                    IconButton(onClick = viewModel::openAddFriendDialog) {
-                        Icon(Icons.Default.PersonAdd, contentDescription = "Agregar amigo",
-                            tint = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            }
-
-            Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp)) {
-                Text("Comparte gastos con las personas de tu círculo",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(14.dp))
+            Column(Modifier.fillMaxWidth().padding(start = Spacing.large, end = Spacing.small)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween) {
                     Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("MIS AMIGOS", fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.small)) {
+                    Text("MIS AMIGOS", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold,
+                        letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Box(Modifier.sizeIn(minWidth = 20.dp, minHeight = 20.dp)
                         .clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer)
-                        .padding(horizontal = 5.dp), contentAlignment = Alignment.Center) {
-                        Text("${uiState.friends.size}", fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                        .padding(horizontal = Spacing.tiny), contentAlignment = Alignment.Center) {
+                        Text("${uiState.friends.size}", fontSize = MaterialTheme.typography.labelMedium.fontSize, fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary)
                     }
                 }
                     TextButton(onClick = viewModel::openRequests, shape = RoundedCornerShape(50),
-                        contentPadding = PaddingValues(horizontal = 10.dp)) {
+                        contentPadding = PaddingValues(horizontal = Spacing.compact)) {
                         Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
-                            Text("${uiState.receivedCount}", Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("${uiState.receivedCount}", Modifier.padding(horizontal = Spacing.small, vertical = Spacing.tiny),
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize, fontWeight = FontWeight.Bold)
                         }
-                        Spacer(Modifier.width(6.dp))
-                        Text("Solicitudes", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(Spacing.small))
+                        Text("Solicitudes", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold)
                     }
                 }
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(Spacing.compact))
             }
 
             PagamePullToRefresh(Modifier.weight(1f).fillMaxWidth()) {
@@ -125,8 +95,8 @@ fun FriendsScreen(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 16.dp)
+                        verticalArrangement = Arrangement.spacedBy(Spacing.compact),
+                        contentPadding = PaddingValues(start = Spacing.large, end = Spacing.large, top = Spacing.tiny, bottom = Spacing.medium)
                     ) {
                         items(uiState.friends, key = { it.id }) { friend ->
                             val request = uiState.requests.firstOrNull { it.otherId(uiState.myId) == friend.id }
@@ -137,7 +107,7 @@ fun FriendsScreen(
                                         viewModel.requestExistingFriend(friend)
                                     }, shape = RoundedCornerShape(50), modifier = Modifier.align(Alignment.End)) {
                                         Text("Confirmar amistad",
-                                            fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -178,9 +148,9 @@ fun FriendsScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(
-                    bottom = 12.dp,
-                    start = 20.dp,
-                    end = 20.dp
+                    bottom = Spacing.compact,
+                    start = Spacing.large,
+                    end = Spacing.large
                 )
         )
     }
@@ -203,14 +173,14 @@ fun FriendCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = Spacing.medium, vertical = Spacing.medium),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                horizontalArrangement = Arrangement.spacedBy(Spacing.medium)
             ) {
                 ProfileAvatar(friend.id, 42.dp)
 
@@ -221,10 +191,10 @@ fun FriendCard(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(Spacing.tiny))
                     Text(
                         text = "En ${friend.eventsTogetherCount} eventos juntos",
-                        fontSize = 11.sp,
+                        fontSize = MaterialTheme.typography.labelMedium.fontSize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -238,12 +208,12 @@ fun FriendCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
-                        .background(Color(0xFFE8F7EE))
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                        .background(MaterialTheme.pagameColors.successContainer)
+                        .padding(horizontal = Spacing.compact, vertical = Spacing.tiny)
                 ) {
                     Text(
                         text = friend.codeOrStatus,
-                        fontSize = 11.sp,
+                        fontSize = MaterialTheme.typography.labelMedium.fontSize,
                         fontWeight = FontWeight.Bold,
                         color = StatusSuccessText
                     )
@@ -251,7 +221,7 @@ fun FriendCard(
             } else {
                 Text(
                     text = friend.codeOrStatus,
-                    fontSize = 12.sp,
+                    fontSize = MaterialTheme.typography.bodySmall.fontSize,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -268,7 +238,7 @@ fun FriendsEmptyState(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(32.dp),
+            .padding(Spacing.section),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -287,7 +257,7 @@ fun FriendsEmptyState(
             )
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(Spacing.large))
 
         Text(
             text = "Aún no tienes amigos agregados",
@@ -296,7 +266,7 @@ fun FriendsEmptyState(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(Spacing.small))
 
         Text(
             text = "Comparte tu código o ingresa el de un amigo para empezar a dividir cuentas.",
@@ -305,16 +275,16 @@ fun FriendsEmptyState(
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(Spacing.large))
 
         Button(
             onClick = onAddClick,
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             shape = RoundedCornerShape(16.dp),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+            contentPadding = PaddingValues(horizontal = Spacing.page, vertical = Spacing.compact)
         ) {
             Icon(imageVector = Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(Spacing.small))
             Text("Agregar primer amigo", fontWeight = FontWeight.Bold)
         }
     }

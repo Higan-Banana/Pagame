@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import gt.pagame.app.ui.theme.*
 
 @Composable
@@ -37,7 +36,7 @@ internal fun AddFriendDialog(
     PagameCenteredDialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier
-                .padding(top = 12.dp)
+                .padding(top = Spacing.compact)
                 .width(46.dp)
                 .height(5.dp)
                 .clip(CircleShape)
@@ -48,7 +47,7 @@ internal fun AddFriendDialog(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 22.dp, top = 12.dp, end = 14.dp),
+                .padding(start = Spacing.page, top = Spacing.compact, end = Spacing.medium),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
@@ -58,11 +57,11 @@ internal fun AddFriendDialog(
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(Spacing.tiny))
                 Text(
                     text = "Ingresa el código único de formato PG-XXXX para enviarle una solicitud. Serán amigos cuando la acepte.",
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp,
+                    fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                    lineHeight = MaterialTheme.typography.bodySmall.lineHeight,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -76,24 +75,24 @@ internal fun AddFriendDialog(
         }
 
         Column(
-            modifier = Modifier.padding(horizontal = 22.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.padding(horizontal = Spacing.page, vertical = Spacing.large),
+            verticalArrangement = Arrangement.spacedBy(Spacing.medium)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
                         text = "CÓDIGO DE AMIGO",
-                        fontSize = 11.sp,
+                        fontSize = MaterialTheme.typography.labelMedium.fontSize,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing
                     )
                     Text(
                         text = "4 dígitos",
-                        fontSize = 10.sp,
+                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -141,14 +140,14 @@ internal fun AddFriendDialog(
             }
 
             if (loading) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.compact)) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     Text("Buscando usuario…")
                 }
             } else if (error != null) {
                 Text(error, color = MaterialTheme.colorScheme.error)
             } else if (friendName.isNotBlank()) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -156,19 +155,19 @@ internal fun AddFriendDialog(
                     ) {
                         Text(
                             text = "PERSONA A AGREGAR",
-                            fontSize = 11.sp,
+                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 0.5.sp
+                            letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing
                         )
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
                                 .background(StatusSuccessBg)
                                 .border(1.dp, StatusSuccessBorder, RoundedCornerShape(50))
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                                .padding(horizontal = Spacing.small, vertical = Spacing.tiny),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.tiny)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Verified,
@@ -178,7 +177,7 @@ internal fun AddFriendDialog(
                             )
                             Text(
                                 text = "Código verificado",
-                                fontSize = 10.sp,
+                                fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                 fontWeight = FontWeight.Bold,
                                 color = StatusSuccessText
                             )
@@ -188,14 +187,14 @@ internal fun AddFriendDialog(
                     Surface(
                         shape = RoundedCornerShape(18.dp),
                         color = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-                            Color.White
+                            MaterialTheme.colorScheme.surface
                         } else {
                             MaterialTheme.colorScheme.surfaceVariant
                         },
                         border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
                     ) {
                         Row(
-                            modifier = Modifier.padding(13.dp),
+                            modifier = Modifier.padding(Spacing.compact),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
@@ -215,15 +214,15 @@ internal fun AddFriendDialog(
                                     color = AvatarPalette[friendColorIndex.coerceIn(0, 7)].second
                                 )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(Spacing.compact))
                             Column(modifier = Modifier.weight(1f)) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.small)
                                 ) {
                                     Text(
                                         text = friendName,
-                                        fontSize = 13.sp,
+                                        fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                                         fontWeight = FontWeight.ExtraBold
                                     )
                                     Surface(
@@ -232,8 +231,8 @@ internal fun AddFriendDialog(
                                     ) {
                                         Text(
                                             text = friendCode,
-                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-                                            fontSize = 8.sp,
+                                            modifier = Modifier.padding(horizontal = Spacing.tiny, vertical = Spacing.tiny),
+                                            fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary
                                         )
@@ -241,12 +240,12 @@ internal fun AddFriendDialog(
                                 }
                                 Text(
                                     text = "Usuario de Pagame",
-                                    fontSize = 10.sp,
+                                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(Spacing.tiny)
                                 ) {
                                     Box(
                                         modifier = Modifier
@@ -256,7 +255,7 @@ internal fun AddFriendDialog(
                                     )
                                     Text(
                                         text = "Usuario encontrado",
-                                        fontSize = 10.sp,
+                                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -276,7 +275,7 @@ internal fun AddFriendDialog(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
                         .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
-                        .padding(16.dp),
+                        .padding(Spacing.medium),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
@@ -284,15 +283,15 @@ internal fun AddFriendDialog(
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(Spacing.small))
                     Text(
                         text = "No se encontró ningún usuario",
-                        fontSize = 12.sp,
+                        fontSize = MaterialTheme.typography.bodySmall.fontSize,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = "Verifica que el código sea correcto",
-                        fontSize = 10.sp,
+                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -303,26 +302,26 @@ internal fun AddFriendDialog(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 14.dp),
+                .padding(horizontal = Spacing.large, vertical = Spacing.medium),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextButton(onClick = onDismiss) {
                 Text("Cancelar", fontWeight = FontWeight.Bold)
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Spacing.small))
             Button(
                 onClick = onAddFriend,
                 enabled = friendName.isNotBlank() && !loading && !busy,
                 shape = RoundedCornerShape(50),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 11.dp)
+                contentPadding = PaddingValues(horizontal = Spacing.large, vertical = Spacing.compact)
             ) {
                 Icon(
                     imageVector = Icons.Default.PersonAdd,
                     contentDescription = null,
                     modifier = Modifier.size(17.dp)
                 )
-                Spacer(modifier = Modifier.width(7.dp))
+                Spacer(modifier = Modifier.width(Spacing.small))
                 Text(if (busy) "Enviando…" else "Enviar solicitud", fontWeight = FontWeight.ExtraBold)
             }
         }

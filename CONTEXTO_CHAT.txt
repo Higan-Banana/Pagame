@@ -173,3 +173,23 @@ Se consolidan los informes históricos CAMBIOS_*.txt, *_LEER.txt, README_FIREBAS
 Se conserva verification/README.md como guía técnica vigente de las pruebas. No se borran código, pruebas, recursos, configuración, cachés, datos de Firebase ni documentos ajenos a estos informes por esta limpieza.
 
 Al retomar: leer este contexto y el código pertinente, respetar instrucciones nuevas y cambios locales, realizar solo lo autorizado y reportar con precisión qué se verificó y qué sigue pendiente.
+
+12. AJUSTE DE MATERIAL 3 Y ACLARACIÓN DEL PLAN — 19 DE OCTUBRE DE 2026
+
+El usuario compartió una consigna de avance UI y un plan académico anterior. Tras la revisión pidió corregir valores visuales fijos y componentes de estructura.
+ACLARACIÓN VIGENTE: el usuario habló con el catedrático y replantearon la aplicación. El plan original ya no debe tratarse como una exigencia para reintroducir Room, Hilt, Navigation 3 u otras tecnologías descartadas. Conservar la arquitectura actual salvo nueva instrucción.
+
+Cambios realizados:
+- Type.kt define los roles tipográficos usados por la UI; los tamaños, interlineados y espaciados de letras en pantallas/componentes referencian MaterialTheme.typography, sin literales sp.
+- Color.kt concentra la paleta, los colores semánticos adicionales accesibles mediante MaterialTheme.pagameColors y la paleta de avatares. No quedan colores hexadecimales fijos dentro de pantallas/componentes.
+- Spacing.kt centraliza el padding, las separaciones y los huecos de Spacer en una escala de 4 dp. Los bordes, radios y tamaños de iconos se consideran dimensiones diferentes de ese espaciado.
+- PagameBottomBar utiliza NavigationBar y NavigationBarItem de Material 3, con las mismas tres pestañas y callbacks.
+- PagameTopAppBar es un componente compartido basado en TopAppBar. MainContainer lo coloca en Scaffold.topBar y se retiraron los encabezados duplicados de Eventos, Amigos y Opciones. El detalle de evento también utiliza esta barra con volver, total y eliminar.
+- La acción de agregar amigo se mantiene en la barra de Amigos y Solicitudes sigue junto al contador. Se conservan los flujos de datos y formularios.
+
+Verificación posterior:
+- Gradle volvió a fallar antes de compilar con Unable to establish loopback connection.
+- Como alternativa se recuperó el classpath Android de 107 dependencias existentes en caché y se compilaron TODOS los archivos Kotlin de producción con Kotlin 2.2.10 y el plugin Compose 2.2.10: resultado correcto, sin errores.
+- Se compilaron las pruebas contra esas clases, usando friend paths para los símbolos internal, y pasaron las 27 pruebas Kotlin. Ya no fue necesario extraer EventDetailUiState para esa ejecución.
+- Esta comprobación no genera un APK ni valida empaquetado, recursos nuevos o representación visual en un dispositivo. Siguen pendientes el ensamblado con Gradle y la revisión de tipografías, barras, navegación por gestos/tres botones y nombres largos en pantalla.
+- No se modificaron reglas Firebase ni operaciones de negocio en esta intervención.

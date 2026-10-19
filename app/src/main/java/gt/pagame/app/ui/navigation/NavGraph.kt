@@ -1,11 +1,14 @@
 package gt.pagame.app.ui.navigation
 
+import gt.pagame.app.ui.theme.*
+
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -80,10 +83,10 @@ fun PagameNavGraph() {
 
 @Composable
 private fun ProfileLoading(message: String) {
-    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(Spacing.page),
         verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         CircularProgressIndicator()
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Spacing.medium))
         Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -99,7 +102,7 @@ private fun ProfileSetup(loading: Boolean, error: String?) {
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(Spacing.page),
         verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Completa tu perfil", style = MaterialTheme.typography.headlineSmall)
         Text("Tu cuenta está creada. Guarda tu nombre para comenzar.")
@@ -133,6 +136,28 @@ fun MainContainer(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets.safeDrawing,
+        topBar = {
+            PagameTopAppBar(
+                title = when (currentTab) {
+                    "friends_tab" -> "Amigos"
+                    "options_tab" -> "Opciones"
+                    else -> "Eventos"
+                },
+                subtitle = when (currentTab) {
+                    "friends_tab" -> "Comparte gastos con las personas de tu círculo"
+                    "options_tab" -> "Perfil, preferencias y cuenta"
+                    else -> "Divide cuentas fácilmente con tu círculo"
+                },
+                actions = {
+                    if (currentTab == "friends_tab") {
+                        IconButton(onClick = friendsViewModel::openAddFriendDialog) {
+                            Icon(Icons.Default.PersonAdd, contentDescription = "Agregar amigo",
+                                tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            )
+        },
         bottomBar = {
             PagameBottomBar(
                 currentRoute = currentTab,

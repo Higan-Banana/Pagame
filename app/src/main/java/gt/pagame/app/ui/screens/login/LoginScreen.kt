@@ -25,7 +25,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import gt.pagame.app.ui.components.PagameInputField
 import gt.pagame.app.ui.components.PagamePrimaryButton
 import gt.pagame.app.ui.theme.*
@@ -70,11 +69,11 @@ fun LoginContent(
             .background(MaterialTheme.colorScheme.background)
             .safeDrawingPadding()
             .verticalScroll(scrollState)
-            .padding(bottom = 24.dp),
+            .padding(bottom = Spacing.page),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Spacing.medium))
 
         // Brand Icon Squircle
         Box(
@@ -90,9 +89,9 @@ fun LoginContent(
                 .background(
                     brush = Brush.linearGradient(
                         colors = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-                            listOf(Color(0xFF2A9D8F), Color(0xFF1F6F68))
+                            listOf(MaterialTheme.colorScheme.primary, MaterialTheme.pagameColors.gradientEnd)
                         } else {
-                            listOf(MaterialTheme.colorScheme.primary, Color(0xFFE04E28))
+                            listOf(MaterialTheme.colorScheme.primary, MaterialTheme.pagameColors.gradientEnd)
                         }
                     )
                 ),
@@ -101,12 +100,12 @@ fun LoginContent(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
                 contentDescription = "Pagame Logo",
-                tint = Color.White,
+                tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(34.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Spacing.medium))
 
         Text(
             text = "Pagame",
@@ -115,27 +114,27 @@ fun LoginContent(
             fontWeight = FontWeight.ExtraBold
         )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(Spacing.small))
 
         Text(
             text = "Divide cuentas y gastos entre amigos en\nmenos de un minuto",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 32.dp)
+            modifier = Modifier.padding(horizontal = Spacing.section)
         )
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(Spacing.medium))
 
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(Spacing.roomy))
 
         // Form fields
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = Spacing.page),
+            verticalArrangement = Arrangement.spacedBy(Spacing.medium)
         ) {
             PagameInputField(
                 value = uiState.email,
@@ -155,7 +154,7 @@ fun LoginContent(
                 headerTrailing = {
                     Text(
                         text = "¿Olvidaste tu contraseña?",
-                        fontSize = 12.sp,
+                        fontSize = MaterialTheme.typography.bodySmall.fontSize,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.clickable { onResetPassword() }
@@ -177,24 +176,24 @@ fun LoginContent(
                 Text(
                     text = uiState.errorMessage,
                     color = MaterialTheme.colorScheme.error,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 4.dp)
+                    fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                    modifier = Modifier.padding(horizontal = Spacing.tiny)
                 )
             }
 
-            uiState.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp) }
+            uiState.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = MaterialTheme.typography.bodySmall.fontSize) }
 
             PagamePrimaryButton(
                 text = if (uiState.isLoading) "Ingresando…" else "Iniciar sesión",
                 enabled = !uiState.isLoading,
                 onClick = onLoginClick,
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(top = Spacing.small)
             )
 
         }
 
         Spacer(modifier = Modifier.weight(1f, fill = false))
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(Spacing.roomy))
 
         // Footer
         Row(
@@ -203,21 +202,21 @@ fun LoginContent(
         ) {
             Text(
                 text = "¿Aún no tienes cuenta?",
-                fontSize = 13.sp,
+                fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(Spacing.tiny))
             Text(
                 text = "Regístrate gratis",
-                fontSize = 13.sp,
+                fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable { onNavigateToRegister() }
             )
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(Spacing.compact))
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Spacing.compact))
     }
 }

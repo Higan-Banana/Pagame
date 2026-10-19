@@ -44,7 +44,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import gt.pagame.app.data.model.BalanceStatus
@@ -57,8 +56,8 @@ fun PagameCenteredDialog(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val isLightTheme = MaterialTheme.colorScheme.background.luminance() > 0.5f
-    val dialogSurface = if (isLightTheme) Color.White else MaterialTheme.colorScheme.surface
-    val dialogContent = if (isLightTheme) Color(0xFF131B26) else MaterialTheme.colorScheme.onSurface
+    val dialogSurface = if (isLightTheme) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surface
+    val dialogContent = if (isLightTheme) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface
 
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -71,7 +70,7 @@ fun PagameCenteredDialog(
             modifier = Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
-                .padding(horizontal = 18.dp, vertical = 24.dp),
+                .padding(horizontal = Spacing.large, vertical = Spacing.page),
             contentAlignment = Alignment.Center
         ) {
             Surface(
@@ -116,12 +115,12 @@ fun PagameBottomSheet(
         contentWindowInsets = { WindowInsets.safeDrawing },
         modifier = modifier,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-        containerColor = if (isLightTheme) Color.White else MaterialTheme.colorScheme.surface,
+        containerColor = if (isLightTheme) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
         dragHandle = {
             Box(
                 modifier = Modifier
-                    .padding(top = 12.dp, bottom = 6.dp)
+                    .padding(top = Spacing.compact, bottom = Spacing.small)
                     .width(42.dp)
                     .height(5.dp)
                     .clip(CircleShape)
@@ -187,22 +186,22 @@ fun PagameFloatingNotice(
     Surface(
         modifier = modifier.widthIn(max = 320.dp),
         shape = RoundedCornerShape(50),
-        color = Color(0xFF1F2937),
+        color = MaterialTheme.colorScheme.inverseSurface,
         contentColor = MaterialTheme.colorScheme.onPrimary,
         shadowElevation = 10.dp
     ) {
         Row(
             modifier = Modifier.padding(
-                horizontal = 16.dp,
-                vertical = 10.dp
+                horizontal = Spacing.medium,
+                vertical = Spacing.compact
             ),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.small)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color(0xFF34D399),
+                tint = MaterialTheme.pagameColors.successContent,
                 modifier = Modifier.size(18.dp)
             )
 
@@ -210,8 +209,8 @@ fun PagameFloatingNotice(
                 text = message,
                 modifier = Modifier.weight(1f, fill = false),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                color = Color.White,
-                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.inverseOnSurface,
+                fontSize = MaterialTheme.typography.bodySmall.fontSize,
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -245,7 +244,7 @@ fun PagamePrimaryButton(
             disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
             disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
         ),
-        contentPadding = PaddingValues(horizontal = 24.dp)
+        contentPadding = PaddingValues(horizontal = Spacing.page)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -254,11 +253,11 @@ fun PagamePrimaryButton(
             Text(
                 text = text,
                 style = MaterialTheme.typography.labelLarge,
-                fontSize = 15.sp,
+                fontSize = MaterialTheme.typography.bodyLarge.fontSize,
                 fontWeight = FontWeight.Bold
             )
             if (showArrow) {
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Spacing.small))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
@@ -288,7 +287,7 @@ fun PagameInputField(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 6.dp, start = 4.dp, end = 4.dp),
+                .padding(bottom = Spacing.small, start = Spacing.tiny, end = Spacing.tiny),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -297,8 +296,8 @@ fun PagameInputField(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 0.8.sp,
-                fontSize = 11.sp
+                letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing,
+                fontSize = MaterialTheme.typography.labelMedium.fontSize
             )
             headerTrailing?.invoke()
         }
@@ -310,7 +309,7 @@ fun PagameInputField(
                 .clip(RoundedCornerShape(18.dp))
                 .background(MaterialTheme.colorScheme.surface)
                 .border(1.dp, borderColor, RoundedCornerShape(18.dp))
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = Spacing.medium, vertical = Spacing.compact),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -328,14 +327,14 @@ fun PagameInputField(
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(Spacing.compact))
 
             Box(modifier = Modifier.weight(1f)) {
                 if (value.isEmpty()) {
                     Text(
                         text = placeholder,
                         style = TextStyle(
-                            fontSize = 14.sp,
+                            fontSize = MaterialTheme.typography.labelLarge.fontSize,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Normal
                         )
@@ -345,7 +344,7 @@ fun PagameInputField(
                     value = value,
                     onValueChange = onValueChange,
                     textStyle = TextStyle(
-                        fontSize = 14.sp,
+                        fontSize = MaterialTheme.typography.labelLarge.fontSize,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     ),
@@ -371,26 +370,26 @@ fun BalanceStatusChip(
 ) {
     val (bg, textColor, text, icon) = when (status) {
         BalanceStatus.YOU_ARE_OWED -> Quadruple(
-            Color(0xFFE8F7EE),
-            Color(0xFF137A50),
+            MaterialTheme.pagameColors.successContainer,
+            MaterialTheme.pagameColors.successContent,
             "Te deben ${money((amount * 100).roundToLong(), currency)}",
             Icons.Default.Check
         )
         BalanceStatus.YOU_OWE -> Quadruple(
-            Color(0xFFE8F7EE),
-            Color(0xFF137A50),
+            MaterialTheme.pagameColors.successContainer,
+            MaterialTheme.pagameColors.successContent,
             "Debes ${money((amount * 100).roundToLong(), currency)}",
             null
         )
         BalanceStatus.ALL_SETTLED -> Quadruple(
-            Color(0xFFE8F7EE),
-            Color(0xFF137A50),
+            MaterialTheme.pagameColors.successContainer,
+            MaterialTheme.pagameColors.successContent,
             "Al día",
             null
         )
         BalanceStatus.LIQUIDATED -> Quadruple(
-            Color(0xFFE8F7EE),
-            Color(0xFF137A50),
+            MaterialTheme.pagameColors.successContainer,
+            MaterialTheme.pagameColors.successContent,
             "Liquidado",
             Icons.Default.Check
         )
@@ -400,9 +399,9 @@ fun BalanceStatusChip(
         modifier = modifier
             .clip(RoundedCornerShape(50))
             .background(bg)
-            .padding(horizontal = 10.dp, vertical = 5.dp),
+            .padding(horizontal = Spacing.compact, vertical = Spacing.tiny),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(Spacing.tiny)
     ) {
         icon?.let {
             Icon(
@@ -414,7 +413,7 @@ fun BalanceStatusChip(
         }
         Text(
             text = text,
-            fontSize = 11.sp,
+            fontSize = MaterialTheme.typography.labelMedium.fontSize,
             fontWeight = FontWeight.Bold,
             color = textColor
         )
@@ -424,90 +423,30 @@ fun BalanceStatusChip(
 private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
 @Composable
-fun PagameBottomBar(
-    currentRoute: String,
-    onTabSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 6.dp,
-        shadowElevation = 12.dp
+fun PagameBottomBar(currentRoute: String, onTabSelected: (String) -> Unit, modifier: Modifier = Modifier) {
+    NavigationBar(
+        modifier = modifier.fillMaxWidth(),
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        tonalElevation = Spacing.tiny
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+        listOf(
+            Triple("events_tab", "Eventos", Icons.Default.CalendarMonth),
+            Triple("friends_tab", "Amigos", Icons.Default.Group),
+            Triple("options_tab", "Opciones", Icons.Default.Settings)
+        ).forEach { (route, title, icon) ->
+            NavigationBarItem(
+                selected = currentRoute == route,
+                onClick = { onTabSelected(route) },
+                icon = { Icon(icon, contentDescription = null) },
+                label = { Text(title) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            BottomNavItem(
-                title = "Eventos",
-                icon = Icons.Default.CalendarMonth,
-                isSelected = currentRoute == "events_tab",
-                onClick = { onTabSelected("events_tab") }
-            )
-            BottomNavItem(
-                title = "Amigos",
-                icon = Icons.Default.Group,
-                isSelected = currentRoute == "friends_tab",
-                onClick = { onTabSelected("friends_tab") }
-            )
-            BottomNavItem(
-                title = "Opciones",
-                icon = Icons.Default.Settings,
-                isSelected = currentRoute == "options_tab",
-                onClick = { onTabSelected("options_tab") }
-            )
-        }
-    }
-}
-
-@Composable
-private fun BottomNavItem(
-    title: String,
-    icon: ImageVector,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-
-    Box(
-        modifier = Modifier
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                else Color.Transparent
-            )
-            .padding(horizontal = if (isSelected) 18.dp else 12.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.height(3.dp))
-            Text(
-                text = title,
-                fontSize = 11.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -535,18 +474,18 @@ fun PagameExtendedFab(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary
         ),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+        contentPadding = PaddingValues(horizontal = Spacing.large, vertical = Spacing.compact)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(20.dp)
         )
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(Spacing.small))
         Text(
             text = text,
             fontWeight = FontWeight.Bold,
-            fontSize = 14.sp
+            fontSize = MaterialTheme.typography.labelLarge.fontSize
         )
     }
 }
@@ -556,20 +495,20 @@ fun AvatarBubble(
     text: String,
     modifier: Modifier = Modifier,
     size: Dp = 28.dp,
-    backgroundColor: Color = Color(0xFFFEF3C7),
-    textColor: Color = Color(0xFF92400E)
+    backgroundColor: Color = MaterialTheme.pagameColors.warningContainer,
+    textColor: Color = MaterialTheme.pagameColors.warningContent
 ) {
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
             .background(backgroundColor)
-            .border(1.5.dp, Color.White, CircleShape),
+            .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            fontSize = (size.value * 0.42).sp,
+            fontSize = MaterialTheme.typography.labelMedium.fontSize,
             fontWeight = FontWeight.Bold,
             color = textColor
         )

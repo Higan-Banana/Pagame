@@ -47,6 +47,8 @@ Está desarrollada con Kotlin y Jetpack Compose. Utiliza Firebase Authentication
 ### Sincronización e interfaz
 
 - Actualizaciones mediante listeners de Firestore y actualización manual al deslizar.
+- Estructura Material 3 con TopAppBar y NavigationBar/NavigationBarItem para las pestañas principales.
+- Tipografía y colores centralizados en el tema; separaciones y padding con la escala compartida Spacing, en múltiplos de 4 dp.
 - Formularios de eventos, gastos y participantes como hojas inferiores.
 - Interfaz con soporte de tema y márgenes de las barras del sistema.
 - Caché habitual de Firestore para información ya descargada. Las operaciones que usan transacciones necesitan conexión; no existe una cola propia que garantice guardar cualquier acción sin internet.
@@ -110,6 +112,8 @@ npm test
 Las pruebas locales de reglas no necesitan instalar dependencias. La ejecución con el emulador oficial se explica en [verification/README.md](verification/README.md).
 
 En la revisión del 19 de octubre de 2026 pasaron 27 pruebas Kotlin del modelo y del estado de detalle mediante compilador local/JUnit, y 41 pruebas del intérprete local de reglas. La compilación Android completa se detuvo antes de compilar con Unable to establish loopback connection de Gradle. No se completó la prueba visual en un dispositivo ni la suite del emulador oficial Firestore. Tampoco se confirmó la publicación de las reglas remotas.
+
+Después del ajuste de Material 3 se compilaron todos los archivos Kotlin de producción con el plugin de Compose 2.2.10 y el classpath Android disponible en caché, sin errores. Las 27 pruebas Kotlin también pasaron contra esas clases compiladas, sin extraer el estado de interfaz. Esto valida el código fuente, pero no sustituye el ensamblado del APK con Gradle ni la comprobación visual en Android.
 
 Antes de distribuir, comprobar con dos cuentas el envío y aceptación de amistad, los eventos compartidos, gastos agregados por distintos miembros, confirmación de pagos, borradores separados por evento y las restricciones de edición y eliminación.
 

@@ -40,7 +40,6 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import gt.pagame.app.data.model.ExpenseItem
 import gt.pagame.app.data.model.FriendItem
 import gt.pagame.app.data.model.titleInitial
@@ -59,7 +58,7 @@ fun EventDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     OperationError(uiState.errorMessage, viewModel::dismissError)
     if (uiState.loading || uiState.event == null) {
-        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(Spacing.page),
             verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
             if (uiState.loading) CircularProgressIndicator() else Text("El evento ya no está disponible")
             TextButton(onClick = onNavigateBack) { Text("Volver") }
@@ -79,101 +78,45 @@ fun EventDetailScreen(
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
         ) {
 
-            // Header Row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surface)
-                            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                            .clickable { onNavigateBack() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(18.dp)
-                        )
+            PagameTopAppBar(
+                title = uiState.title,
+                titleStyle = MaterialTheme.typography.titleLarge,
+                titleMaxLines = 2,
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = uiState.title,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 2, overflow = TextOverflow.Ellipsis
-                        )
+                },
+                actions = {
+                    Text(
+                        text = "${money((uiState.totalAmount * 100).roundToLong(), uiState.currency)} total",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.widthIn(max = 130.dp),
+                        maxLines = 2, overflow = TextOverflow.Ellipsis
+                    )
+                    IconButton(onClick = viewModel::requestDeleteEvent, enabled = !uiState.busy) {
+                        Icon(Icons.Default.Delete, contentDescription = "Eliminar evento",
+                            tint = MaterialTheme.colorScheme.error)
                     }
                 }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(MaterialTheme.colorScheme.primaryContainer)
-                            .border(
-                                1.dp,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                                RoundedCornerShape(50)
-                            )
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
-                    ) {
-                        Text(
-                            text = "${money((uiState.totalAmount * 100).roundToLong(), uiState.currency)} total",
-                            modifier = Modifier.widthIn(max = 130.dp),
-                            maxLines = 2, overflow = TextOverflow.Ellipsis,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    IconButton(
-                        onClick = viewModel::requestDeleteEvent,
-                        enabled = !uiState.busy,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Eliminar evento",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
+            )
 
             Text(
                 text = "${uiState.subtitle}\nCreado por: ${uiState.createdByName}",
-                fontSize = 11.sp,
+                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 6.dp)
+                modifier = Modifier.fillMaxWidth().padding(start = Spacing.large, end = Spacing.large, bottom = Spacing.small)
             )
 
             // Segmented Control (Gastos vs Balance)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .padding(horizontal = Spacing.large, vertical = Spacing.small)
                     .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(4.dp)
+                    .padding(Spacing.tiny)
             ) {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     val isExpenses = uiState.selectedTab == EventDetailTab.EXPENSES
@@ -184,15 +127,15 @@ fun EventDetailScreen(
                             .clip(RoundedCornerShape(12.dp))
                             .background(
                                 if (isExpenses) MaterialTheme.colorScheme.surface
-                                else Color.Transparent
+                                else MaterialTheme.pagameColors.transparent
                             )
                             .clickable { viewModel.selectTab(EventDetailTab.EXPENSES) }
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = Spacing.small),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.small)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
@@ -202,7 +145,7 @@ fun EventDetailScreen(
                             )
                             Text(
                                 text = "Gastos (${uiState.expenses.size})",
-                                fontSize = 12.sp,
+                                fontSize = MaterialTheme.typography.bodySmall.fontSize,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isExpenses) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -215,15 +158,15 @@ fun EventDetailScreen(
                             .clip(RoundedCornerShape(12.dp))
                             .background(
                                 if (!isExpenses) MaterialTheme.colorScheme.surface
-                                else Color.Transparent
+                                else MaterialTheme.pagameColors.transparent
                             )
                             .clickable { viewModel.selectTab(EventDetailTab.BALANCE) }
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = Spacing.small),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.small)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AccountBalance,
@@ -233,7 +176,7 @@ fun EventDetailScreen(
                             )
                             Text(
                                 text = "Balance",
-                                fontSize = 12.sp,
+                                fontSize = MaterialTheme.typography.bodySmall.fontSize,
                                 fontWeight = FontWeight.Bold,
                                 color = if (!isExpenses) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -272,7 +215,7 @@ fun EventDetailScreen(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                    .padding(end = 20.dp, bottom = 90.dp)
+                    .padding(end = Spacing.large, bottom = Spacing.fabClearance)
             )
         }
 
@@ -295,7 +238,7 @@ fun EventDetailScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 22.dp, top = 12.dp, end = 18.dp, bottom = 8.dp),
+                        .padding(start = Spacing.page, top = Spacing.compact, end = Spacing.large, bottom = Spacing.small),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -308,7 +251,7 @@ fun EventDetailScreen(
                         if (isEditing) {
                             Text(
                                 text = uiState.title,
-                                fontSize = 11.sp,
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -336,14 +279,14 @@ fun EventDetailScreen(
                         .fillMaxWidth()
                         .heightIn(max = 510.dp)
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 22.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(horizontal = Spacing.page, vertical = Spacing.small),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.medium)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
                         if (isEditing) {
                             Text(
                                 text = "Concepto del gasto",
-                                fontSize = 11.sp,
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -366,11 +309,11 @@ fun EventDetailScreen(
                         )
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
                         if (isEditing) {
                             Text(
                                 text = "Monto (${uiState.currency.symbol})",
-                                fontSize = 11.sp,
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -381,9 +324,9 @@ fun EventDetailScreen(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             isError = uiState.amountInputError != null,
                             supportingText = if (uiState.amountInputError != null) {
-                                { Text(uiState.amountInputError.orEmpty(), fontSize = 11.sp) }
+                                { Text(uiState.amountInputError.orEmpty(), fontSize = MaterialTheme.typography.labelMedium.fontSize) }
                             } else null,
-                            placeholder = { Text("Máximo: 1,000,000.00", fontSize = 14.sp) },
+                            placeholder = { Text("Máximo: 1,000,000.00", fontSize = MaterialTheme.typography.labelLarge.fontSize) },
                             prefix = {
                                 Text(
                                     text = "${uiState.currency.symbol} ",
@@ -410,14 +353,14 @@ fun EventDetailScreen(
                     ) {
                         Text(
                             text = "¿QUIÉN PAGÓ?",
-                            fontSize = 12.sp,
+                            fontSize = MaterialTheme.typography.bodySmall.fontSize,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 0.4.sp
+                            letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing
                         )
                         Text(
                             text = "Pagado por: ${uiState.expensePayerName}",
-                            fontSize = 11.sp,
+                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -427,7 +370,7 @@ fun EventDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.compact)
                     ) {
                         uiState.payerNames.forEach { name ->
                             val isSelected = uiState.expensePayerName == name
@@ -453,7 +396,7 @@ fun EventDetailScreen(
                                 ) {
                                     Text(
                                         text = if (name == "Tú") "Tú" else name.split(" ").mapNotNull { it.firstOrNull() }.take(2).joinToString(""),
-                                        fontSize = 12.sp,
+                                        fontSize = MaterialTheme.typography.bodySmall.fontSize,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = avatarContent
                                     )
@@ -464,22 +407,22 @@ fun EventDetailScreen(
                                                 .size(17.dp)
                                                 .clip(CircleShape)
                                                 .background(MaterialTheme.colorScheme.primary)
-                                                .border(2.dp, Color.White, CircleShape),
+                                                .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Check,
                                                 contentDescription = null,
-                                                tint = Color.White,
+                                                tint = MaterialTheme.colorScheme.onPrimary,
                                                 modifier = Modifier.size(10.dp)
                                             )
                                         }
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(Spacing.tiny))
                                 Text(
                                     text = name.substringBefore(" "),
-                                    fontSize = 10.sp,
+                                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) MaterialTheme.colorScheme.primary
                                     else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -497,21 +440,21 @@ fun EventDetailScreen(
                         Column {
                             Text(
                                 text = "¿QUIÉN PARTICIPA?",
-                                fontSize = 12.sp,
+                                fontSize = MaterialTheme.typography.bodySmall.fontSize,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                letterSpacing = 0.4.sp
+                                letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing
                             )
                             Text(
                                 text = "${uiState.newExpenseIncludedNames.size}/${uiState.allParticipantNames.size} seleccionados",
-                                fontSize = 10.sp,
+                                fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         val allSelected = uiState.newExpenseIncludedNames.size == uiState.allParticipantNames.size
                         Text(
                             text = if (allSelected) "Desmarcar todos" else "Marcar todos",
-                            fontSize = 12.sp,
+                            fontSize = MaterialTheme.typography.bodySmall.fontSize,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.clickable { viewModel.toggleAllIncluded() }
@@ -519,7 +462,7 @@ fun EventDetailScreen(
                     }
 
                     Box {
-                        Column(modifier = Modifier.padding(2.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(modifier = Modifier.padding(Spacing.tiny), verticalArrangement = Arrangement.spacedBy(Spacing.small)) {
                             uiState.allParticipantNames.forEach { name ->
                                 val isChecked = name in uiState.newExpenseIncludedNames
                                 val (avatarBackground, avatarContent) = avatarColors(name)
@@ -529,7 +472,7 @@ fun EventDetailScreen(
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(
                                             if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-                                                Color.White
+                                                MaterialTheme.colorScheme.surface
                                             } else {
                                                 MaterialTheme.colorScheme.surfaceVariant
                                             }
@@ -540,7 +483,7 @@ fun EventDetailScreen(
                                             RoundedCornerShape(12.dp)
                                         )
                                         .clickable { viewModel.toggleIncludedParticipant(name) }
-                                        .padding(start = 9.dp, top = 4.dp, bottom = 4.dp),
+                                        .padding(start = Spacing.small, top = Spacing.tiny, bottom = Spacing.tiny),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Box(
@@ -552,16 +495,16 @@ fun EventDetailScreen(
                                     ) {
                                         Text(
                                             text = if (name == "Tú") "Tú" else name.take(1),
-                                            fontSize = 10.sp,
+                                            fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                             fontWeight = FontWeight.Bold,
                                             color = avatarContent
                                         )
                                     }
-                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Spacer(modifier = Modifier.width(Spacing.compact))
                                     Text(
                                         text = if (name == "Tú" && uiState.isOrganizer) "Tú (Organizador)" else name,
                                         modifier = Modifier.weight(1f),
-                                        fontSize = 12.5.sp,
+                                        fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                                         fontWeight = if (name == "Tú") FontWeight.Bold else FontWeight.Medium
                                     )
                                     Checkbox(
@@ -578,21 +521,21 @@ fun EventDetailScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                        .padding(horizontal = Spacing.large, vertical = Spacing.medium),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = { viewModel.closeAddExpenseDialog() }) {
                         Text("Cancelar", fontWeight = FontWeight.Bold)
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(Spacing.small))
                     Button(
                         onClick = { viewModel.saveExpense() },
                         enabled = !uiState.busy && uiState.newExpenseTitle.isNotBlank() &&
                             gt.pagame.app.data.model.amountMinor(uiState.newExpenseAmount) != null && uiState.amountInputError == null &&
                             uiState.newExpenseIncludedNames.isNotEmpty(),
                         shape = RoundedCornerShape(50),
-                        contentPadding = PaddingValues(horizontal = 22.dp, vertical = 11.dp)
+                        contentPadding = PaddingValues(horizontal = Spacing.page, vertical = Spacing.compact)
                     ) {
                         Text(
                             text = if (isEditing) "Guardar cambios" else "Guardar",
@@ -661,15 +604,15 @@ private fun ExpensesTabView(
         modifier = modifier
             .fillMaxWidth()
             .consumeWindowInsets(bottomInsets)
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp + bottomInsets.calculateBottomPadding())
+            .padding(horizontal = Spacing.large),
+        verticalArrangement = Arrangement.spacedBy(Spacing.medium),
+        contentPadding = PaddingValues(top = Spacing.small, bottom = Spacing.bottomClearance + bottomInsets.calculateBottomPadding())
     ) {
         // Summary Cards: Total Gastado and Participantes
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(Spacing.compact)
             ) {
                 // Card 1: Total Gastado
                 Box(
@@ -679,32 +622,32 @@ private fun ExpensesTabView(
                         .background(
                             brush = Brush.linearGradient(
                                 colors = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-                                    listOf(Color(0xFF2A9D8F), Color(0xFF1F6F68))
+                                    listOf(MaterialTheme.colorScheme.primary, MaterialTheme.pagameColors.gradientEnd)
                                 } else {
-                                    listOf(MaterialTheme.colorScheme.primary, Color(0xFF991B1B))
+                                    listOf(MaterialTheme.colorScheme.primary, MaterialTheme.pagameColors.balanceGradientEnd)
                                 }
                             )
                         )
-                        .padding(16.dp)
+                        .padding(Spacing.medium)
                 ) {
                     Column {
                         Text(
                             text = "Total Gastado",
-                            fontSize = 12.sp,
+                            fontSize = MaterialTheme.typography.bodySmall.fontSize,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
                             fontWeight = FontWeight.Medium
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(Spacing.small))
                         Text(
                             text = money((uiState.totalAmount * 100).roundToLong(), uiState.currency),
                             style = MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onPrimary
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(Spacing.tiny))
                         Text(
                             text = uiState.currency.displayName,
-                            fontSize = 10.sp,
+                            fontSize = MaterialTheme.typography.labelSmall.fontSize,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
                         )
                     }
@@ -722,7 +665,7 @@ private fun ExpensesTabView(
                             RoundedCornerShape(24.dp)
                         )
                         .clickable(onClick = onParticipantsClick)
-                        .padding(16.dp)
+                        .padding(Spacing.medium)
                 ) {
                     Column(
                         modifier = Modifier.fillMaxHeight(),
@@ -731,11 +674,11 @@ private fun ExpensesTabView(
                         Column {
                             Text(
                                 text = "Participantes",
-                                fontSize = 12.sp,
+                                fontSize = MaterialTheme.typography.bodySmall.fontSize,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(Spacing.small))
                             Text(
                                 text = "${uiState.participantCount} personas",
                                 style = MaterialTheme.typography.titleLarge,
@@ -743,10 +686,10 @@ private fun ExpensesTabView(
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(Spacing.compact))
                         Text(
                             text = "${money((uiState.averagePerPerson * 100).roundToLong(), uiState.currency)} promedio / p",
-                            fontSize = 11.sp,
+                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
                         )
                     }
@@ -759,20 +702,20 @@ private fun ExpensesTabView(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp, bottom = 2.dp),
+                    .padding(top = Spacing.small, bottom = Spacing.tiny),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "DETALLE DE GASTOS",
-                    fontSize = 11.sp,
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.8.sp
+                    letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing
                 )
                 Text(
                     text = "Más recientes primero",
-                    fontSize = 11.sp,
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -780,7 +723,7 @@ private fun ExpensesTabView(
 
         if (uiState.expenses.isEmpty()) item {
             Text("Todavía no hay gastos. Agrega el primero para calcular el balance.",
-                modifier = Modifier.padding(vertical = 24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                modifier = Modifier.padding(vertical = Spacing.page), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         items(uiState.expenses, key = { it.id }) { exp ->
             ExpenseCard(expense = exp, currency = uiState.currency, onClick = { onExpenseClick(exp) })
@@ -821,14 +764,14 @@ private fun ParticipantsEditorSheet(
         contentWindowInsets = { WindowInsets.safeDrawing },
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
         containerColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-            Color.White
+            MaterialTheme.colorScheme.surface
         } else {
             MaterialTheme.colorScheme.surface
         },
         dragHandle = {
             Box(
                 modifier = Modifier
-                    .padding(top = 12.dp, bottom = 6.dp)
+                    .padding(top = Spacing.compact, bottom = Spacing.small)
                     .width(42.dp)
                     .height(5.dp)
                     .clip(CircleShape)
@@ -844,7 +787,7 @@ private fun ParticipantsEditorSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 24.dp, end = 14.dp, bottom = 10.dp),
+                    .padding(start = Spacing.page, end = Spacing.medium, bottom = Spacing.compact),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
@@ -854,10 +797,10 @@ private fun ParticipantsEditorSheet(
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.ExtraBold
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(Spacing.tiny))
                     Text(
                         text = uiState.title,
-                        fontSize = 12.sp,
+                        fontSize = MaterialTheme.typography.bodySmall.fontSize,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -910,15 +853,15 @@ private fun ParticipantsEditorSheet(
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
+                    .padding(horizontal = Spacing.page)
             )
 
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                contentPadding = PaddingValues(horizontal = Spacing.page, vertical = Spacing.compact),
+                verticalArrangement = Arrangement.spacedBy(Spacing.tiny)
             ) {
                 if (showOrganizer || currentParticipants.isNotEmpty()) {
                     item {
@@ -969,7 +912,7 @@ private fun ParticipantsEditorSheet(
                 if (otherFriends.isNotEmpty()) {
                     item {
                         HorizontalDivider(
-                            modifier = Modifier.padding(vertical = 10.dp),
+                            modifier = Modifier.padding(vertical = Spacing.compact),
                             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
                         )
                         ParticipantSectionHeader(
@@ -1005,7 +948,7 @@ private fun ParticipantsEditorSheet(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 28.dp),
+                                .padding(vertical = Spacing.roomy),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
@@ -1014,16 +957,16 @@ private fun ParticipantsEditorSheet(
                                 tint = MaterialTheme.colorScheme.outline,
                                 modifier = Modifier.size(32.dp)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(Spacing.small))
                             Text(
                                 text = "No se encontraron amigos",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
+                                fontSize = MaterialTheme.typography.bodyMedium.fontSize
                             )
                             Text(
                                 text = "Prueba buscando con otro nombre o código",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize
                             )
                         }
                     }
@@ -1034,13 +977,13 @@ private fun ParticipantsEditorSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 14.dp),
+                    .padding(horizontal = Spacing.page, vertical = Spacing.medium),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.tiny)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Lock,
@@ -1050,17 +993,17 @@ private fun ParticipantsEditorSheet(
                     )
                     Text(
                         text = "Bloqueado con gastos",
-                        fontSize = 11.sp,
+                        fontSize = MaterialTheme.typography.labelMedium.fontSize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Button(
                     onClick = onDone,
                     shape = RoundedCornerShape(50),
-                    contentPadding = PaddingValues(horizontal = 25.dp, vertical = 11.dp)
+                    contentPadding = PaddingValues(horizontal = Spacing.page, vertical = Spacing.compact)
                 ) {
                     Text("Listo", fontWeight = FontWeight.ExtraBold)
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(Spacing.small))
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
@@ -1081,15 +1024,15 @@ private fun ParticipantSectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp, bottom = 6.dp),
+            .padding(top = Spacing.tiny, bottom = Spacing.small),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = title,
-            fontSize = 11.sp,
+            fontSize = MaterialTheme.typography.labelMedium.fontSize,
             fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 0.6.sp,
+            letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Surface(
@@ -1099,8 +1042,8 @@ private fun ParticipantSectionHeader(
         ) {
             Text(
                 text = count.toString(),
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                fontSize = 10.sp,
+                modifier = Modifier.padding(horizontal = Spacing.small, vertical = Spacing.tiny),
+                fontSize = MaterialTheme.typography.labelSmall.fontSize,
                 fontWeight = FontWeight.Bold,
                 color = if (accent) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant
@@ -1125,7 +1068,7 @@ private fun ParticipantEditorRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onAction)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(horizontal = Spacing.small, vertical = Spacing.small),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -1137,22 +1080,22 @@ private fun ParticipantEditorRow(
         ) {
             Text(
                 text = initials,
-                fontSize = 12.sp,
+                fontSize = MaterialTheme.typography.bodySmall.fontSize,
                 fontWeight = FontWeight.ExtraBold,
                 color = avatarContent
             )
         }
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(Spacing.compact))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = name,
-                fontSize = 14.sp,
+                fontSize = MaterialTheme.typography.labelLarge.fontSize,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = supportingText,
-                fontSize = 10.5.sp,
+                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                 fontWeight = if (isLocked) FontWeight.SemiBold else FontWeight.Normal,
                 color = when {
                     isLocked -> MaterialTheme.colorScheme.primary
@@ -1196,7 +1139,7 @@ private fun ParticipantRemovalBlockedDialog(
     onDismiss: () -> Unit
 ) {
     PagameCenteredDialog(onDismissRequest = onDismiss) {
-        Column(modifier = Modifier.padding(24.dp)) {
+        Column(modifier = Modifier.padding(Spacing.page)) {
             Box(
                 modifier = Modifier
                     .size(50.dp)
@@ -1211,25 +1154,25 @@ private fun ParticipantRemovalBlockedDialog(
                     modifier = Modifier.size(24.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.medium))
             Text(
                 text = "No se puede quitar",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold
             )
-            Spacer(modifier = Modifier.height(9.dp))
+            Spacer(modifier = Modifier.height(Spacing.small))
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                lineHeight = 20.sp,
+                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(Spacing.page))
             Button(
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                contentPadding = PaddingValues(vertical = 12.dp)
+                contentPadding = PaddingValues(vertical = Spacing.compact)
             ) {
                 Text("Entendido", fontWeight = FontWeight.ExtraBold)
             }
@@ -1245,7 +1188,7 @@ private fun ParticipantChangesConfirmationDialog(
     onConfirm: () -> Unit
 ) {
     PagameCenteredDialog(onDismissRequest = onDismiss) {
-        Column(modifier = Modifier.padding(24.dp)) {
+        Column(modifier = Modifier.padding(Spacing.page)) {
             Box(
                 modifier = Modifier
                     .size(50.dp)
@@ -1260,7 +1203,7 @@ private fun ParticipantChangesConfirmationDialog(
                     modifier = Modifier.size(25.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(Spacing.medium))
             Text(
                 text = "Confirmar cambios",
                 style = MaterialTheme.typography.titleLarge,
@@ -1268,9 +1211,9 @@ private fun ParticipantChangesConfirmationDialog(
             )
             Text(
                 text = "Revisa cómo quedarán los participantes antes de guardar.",
-                modifier = Modifier.padding(top = 6.dp),
-                fontSize = 12.sp,
-                lineHeight = 17.sp,
+                modifier = Modifier.padding(top = Spacing.small),
+                fontSize = MaterialTheme.typography.bodySmall.fontSize,
+                lineHeight = MaterialTheme.typography.bodySmall.lineHeight,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
@@ -1293,7 +1236,7 @@ private fun ParticipantChangesConfirmationDialog(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(Spacing.large))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
@@ -1302,11 +1245,11 @@ private fun ParticipantChangesConfirmationDialog(
                 TextButton(onClick = onDismiss) {
                     Text("Seguir revisando", fontWeight = FontWeight.Bold)
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Spacing.small))
                 Button(
                     onClick = onConfirm,
                     shape = RoundedCornerShape(50),
-                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 11.dp)
+                    contentPadding = PaddingValues(horizontal = Spacing.large, vertical = Spacing.compact)
                 ) {
                     Text("Confirmar", fontWeight = FontWeight.ExtraBold)
                 }
@@ -1321,7 +1264,7 @@ private fun EventDeletionBlockedDialog(
     onDismiss: () -> Unit
 ) {
     PagameCenteredDialog(onDismissRequest = onDismiss) {
-        Column(modifier = Modifier.padding(24.dp)) {
+        Column(modifier = Modifier.padding(Spacing.page)) {
             Box(
                 modifier = Modifier
                     .size(50.dp)
@@ -1336,25 +1279,25 @@ private fun EventDeletionBlockedDialog(
                     modifier = Modifier.size(24.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.medium))
             Text(
                 text = "No se puede eliminar",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold
             )
-            Spacer(modifier = Modifier.height(9.dp))
+            Spacer(modifier = Modifier.height(Spacing.small))
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                lineHeight = 20.sp,
+                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(Spacing.page))
             Button(
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                contentPadding = PaddingValues(vertical = 12.dp)
+                contentPadding = PaddingValues(vertical = Spacing.compact)
             ) {
                 Text("Entendido", fontWeight = FontWeight.ExtraBold)
             }
@@ -1369,7 +1312,7 @@ private fun EventDeletionConfirmationDialog(
     onConfirm: () -> Unit
 ) {
     PagameCenteredDialog(onDismissRequest = onDismiss) {
-        Column(modifier = Modifier.padding(24.dp)) {
+        Column(modifier = Modifier.padding(Spacing.page)) {
             Box(
                 modifier = Modifier
                     .size(50.dp)
@@ -1384,20 +1327,20 @@ private fun EventDeletionConfirmationDialog(
                     modifier = Modifier.size(24.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.medium))
             Text(
                 text = "Eliminar evento",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold
             )
-            Spacer(modifier = Modifier.height(9.dp))
+            Spacer(modifier = Modifier.height(Spacing.small))
             Text(
                 text = "¿Seguro que quieres eliminar \"$eventTitle\"? Esta acción no se puede deshacer.",
                 style = MaterialTheme.typography.bodyMedium,
-                lineHeight = 20.sp,
+                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(Spacing.page))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
@@ -1406,7 +1349,7 @@ private fun EventDeletionConfirmationDialog(
                 TextButton(onClick = onDismiss) {
                     Text("Cancelar", fontWeight = FontWeight.Bold)
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Spacing.small))
                 Button(
                     onClick = onConfirm,
                     shape = RoundedCornerShape(50),
@@ -1414,7 +1357,7 @@ private fun EventDeletionConfirmationDialog(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError
                     ),
-                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 11.dp)
+                    contentPadding = PaddingValues(horizontal = Spacing.large, vertical = Spacing.compact)
                 ) {
                     Text("Eliminar", fontWeight = FontWeight.ExtraBold)
                 }
@@ -1434,14 +1377,14 @@ private fun ParticipantChangeSummary(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 14.dp),
+            .padding(top = Spacing.medium),
         shape = RoundedCornerShape(16.dp),
         color = containerColor
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(Spacing.medium)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(7.dp)
+                horizontalArrangement = Arrangement.spacedBy(Spacing.small)
             ) {
                 Icon(
                     imageVector = icon,
@@ -1451,17 +1394,17 @@ private fun ParticipantChangeSummary(
                 )
                 Text(
                     text = title,
-                    fontSize = 10.sp,
+                    fontSize = MaterialTheme.typography.labelSmall.fontSize,
                     fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 0.5.sp,
+                    letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing,
                     color = contentColor
                 )
             }
             names.forEach { name ->
                 Text(
                     text = "• $name",
-                    modifier = Modifier.padding(start = 24.dp, top = 4.dp),
-                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = Spacing.page, top = Spacing.tiny),
+                    fontSize = MaterialTheme.typography.bodySmall.fontSize,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -1489,14 +1432,14 @@ fun ExpenseCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 14.dp, top = 14.dp, end = 18.dp, bottom = 14.dp),
+                .padding(start = Spacing.medium, top = Spacing.medium, end = Spacing.large, bottom = Spacing.medium),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(Spacing.compact)
             ) {
                 Box(
                     modifier = Modifier
@@ -1510,7 +1453,7 @@ fun ExpenseCard(
                     Text(
                         text = titleInitial(expense.title),
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Bold, fontSize = 20.sp
+                        fontWeight = FontWeight.Bold, fontSize = MaterialTheme.typography.titleLarge.fontSize
                     )
                 }
 
@@ -1523,10 +1466,10 @@ fun ExpenseCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(Spacing.tiny))
                     Text(
                         text = "Pagó ${expense.paidByName}\nAgregado por: ${expense.createdByName}\n${expense.createdAtLabel.substringBefore(" • ")}",
-                        fontSize = 12.sp,
+                        fontSize = MaterialTheme.typography.bodySmall.fontSize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis
@@ -1534,7 +1477,7 @@ fun ExpenseCard(
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Spacing.small))
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = money((expense.amount * 100).roundToLong(), currency),
@@ -1545,7 +1488,7 @@ fun ExpenseCard(
                 )
 
             }
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(Spacing.medium))
             IconButton(
                 onClick = onClick,
                 enabled = expense.canEdit,
@@ -1585,16 +1528,16 @@ private fun BalanceTabView(
         modifier = modifier
             .fillMaxWidth()
             .consumeWindowInsets(bottomInsets)
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp + bottomInsets.calculateBottomPadding())
+            .padding(horizontal = Spacing.large),
+        verticalArrangement = Arrangement.spacedBy(Spacing.compact),
+        contentPadding = PaddingValues(top = Spacing.small, bottom = Spacing.bottomClearance + bottomInsets.calculateBottomPadding())
     ) {
         item {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                color = if (isLightTheme) Color(0xFFFFEFEA) else MaterialTheme.colorScheme.primaryContainer,
+                color = if (isLightTheme) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primaryContainer,
                 border = BorderStroke(
                     1.dp,
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
@@ -1602,7 +1545,7 @@ private fun BalanceTabView(
                 tonalElevation = 0.dp,
                 shadowElevation = 1.dp
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
+                Column(modifier = Modifier.padding(Spacing.large)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1611,16 +1554,16 @@ private fun BalanceTabView(
                         Column {
                             Text(
                                 text = when { balance < 0 -> "DEBES EN TOTAL"; balance > 0 -> "TE DEBEN EN TOTAL"; else -> "ESTÁS AL DÍA" },
-                                fontSize = 11.sp,
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
                                 fontWeight = FontWeight.SemiBold,
-                                letterSpacing = 0.4.sp,
+                                letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.height(5.dp))
+                            Spacer(modifier = Modifier.height(Spacing.tiny))
                             Text(
                                 text = money(kotlin.math.abs(balance), event.currency),
-                                fontSize = 28.sp,
-                                lineHeight = 32.sp,
+                                fontSize = MaterialTheme.typography.headlineLarge.fontSize,
+                                lineHeight = MaterialTheme.typography.headlineLarge.lineHeight,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -1635,17 +1578,17 @@ private fun BalanceTabView(
                         ) {
                             Text(
                                 text = "Balance neto",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                fontSize = 10.sp,
+                                modifier = Modifier.padding(horizontal = Spacing.compact, vertical = Spacing.tiny),
+                                fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Spacing.small))
                     Text(
                         text = "Los pagos se registran cuando quien recibe confirma.",
-                        fontSize = 11.sp,
+                        fontSize = MaterialTheme.typography.labelMedium.fontSize,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1658,25 +1601,25 @@ private fun BalanceTabView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(
-                        start = 2.dp,
-                        top = 5.dp,
-                        end = 2.dp,
-                        bottom = 1.dp
+                        start = Spacing.tiny,
+                        top = Spacing.tiny,
+                        end = Spacing.tiny,
+                        bottom = Spacing.tiny
                     ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "SUGERENCIAS PARA SALDAR",
-                    fontSize = 11.sp,
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.7.sp
+                    letterSpacing = MaterialTheme.typography.labelMedium.letterSpacing
                 )
 
                 Text(
                     text = "$pendingCount pendientes",
-                    fontSize = 11.sp,
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
                 )
@@ -1685,7 +1628,7 @@ private fun BalanceTabView(
 
         if (suggestions.isEmpty() && pending.isEmpty()) item {
             Text(if (event.expenses.isEmpty()) "Agrega gastos para calcular el balance." else "No hay pagos pendientes.",
-                modifier = Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                modifier = Modifier.padding(vertical = Spacing.medium), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         items(suggestions.filter { suggestion -> pending.none { it.fromId == suggestion.fromId && it.toId == suggestion.toId } },
             key = { "suggestion_${it.fromId}_${it.toId}" }) { suggestion ->
@@ -1756,8 +1699,8 @@ private fun BalanceSuggestionCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(11.dp)
+                .padding(Spacing.medium),
+            verticalArrangement = Arrangement.spacedBy(Spacing.compact)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1767,7 +1710,7 @@ private fun BalanceSuggestionCard(
                 Row(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.small)
                 ) {
                     Box(
                         modifier = Modifier
@@ -1778,7 +1721,7 @@ private fun BalanceSuggestionCard(
                     ) {
                         Text(
                             text = fromInitials,
-                            fontSize = 10.sp,
+                            fontSize = MaterialTheme.typography.labelSmall.fontSize,
                             fontWeight = FontWeight.ExtraBold,
                             color = avatarColors.second
                         )
@@ -1786,7 +1729,7 @@ private fun BalanceSuggestionCard(
                     Text(
                         text = fromName,
                         modifier = Modifier.weight(1f, fill = false),
-                        fontSize = 12.sp,
+                        fontSize = MaterialTheme.typography.bodySmall.fontSize,
                         fontWeight = if (isSettled) FontWeight.Medium else FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -1794,24 +1737,24 @@ private fun BalanceSuggestionCard(
                     )
                     Text(
                         text = "→",
-                        fontSize = 13.sp,
+                        fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
                     )
                     Text(
                         text = toName,
                         modifier = Modifier.weight(1f, fill = false),
-                        fontSize = 12.sp,
+                        fontSize = MaterialTheme.typography.bodySmall.fontSize,
                         fontWeight = if (isSettled) FontWeight.Medium else FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(Spacing.compact))
                 Text(
                     text = amount,
-                    fontSize = 14.sp,
+                    fontSize = MaterialTheme.typography.labelLarge.fontSize,
                     fontWeight = FontWeight.ExtraBold,
                     color = if (state == BalanceSuggestionState.PAYMENT_REQUIRED) {
                         MaterialTheme.colorScheme.primary
@@ -1825,7 +1768,7 @@ private fun BalanceSuggestionCard(
             message?.let {
                 Text(
                     text = it,
-                    fontSize = 11.sp,
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1840,16 +1783,16 @@ private fun BalanceSuggestionCard(
                             .fillMaxWidth()
                             .height(42.dp),
                         shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = Spacing.medium, vertical = Spacing.small)
                     ) {
-                        Text("Marcar como pagado", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("Marcar como pagado", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.ExtraBold)
                     }
                 }
 
                 BalanceSuggestionState.RECEIPT_CONFIRMATION -> {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.compact)
                     ) {
                         Button(
                             onClick = onPrimaryAction,
@@ -1860,17 +1803,17 @@ private fun BalanceSuggestionCard(
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = StatusSuccessText,
-                                contentColor = Color.White
+                                contentColor = MaterialTheme.colorScheme.surface
                             ),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                            contentPadding = PaddingValues(horizontal = Spacing.compact, vertical = Spacing.small)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text("Sí, lo recibí", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+                            Spacer(modifier = Modifier.width(Spacing.tiny))
+                            Text("Sí, lo recibí", fontSize = MaterialTheme.typography.labelMedium.fontSize, fontWeight = FontWeight.ExtraBold)
                         }
                         OutlinedButton(
                             onClick = onReject,
@@ -1879,21 +1822,21 @@ private fun BalanceSuggestionCard(
                                 .weight(1f)
                                 .height(42.dp),
                             shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                            contentPadding = PaddingValues(horizontal = Spacing.compact, vertical = Spacing.small)
                         ) {
-                            Text("Aún no", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Aún no", fontSize = MaterialTheme.typography.labelMedium.fontSize, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
 
                 BalanceSuggestionState.WAITING -> {
-                    Text("Pendiente de confirmación o pago", fontSize = 11.sp,
+                    Text("Pendiente de confirmación o pago", fontSize = MaterialTheme.typography.labelMedium.fontSize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 BalanceSuggestionState.SETTLED -> {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.tiny)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Check,
@@ -1903,7 +1846,7 @@ private fun BalanceSuggestionCard(
                         )
                         Text(
                             text = "Liquidado",
-                            fontSize = 11.sp,
+                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
                             fontWeight = FontWeight.Bold,
                             color = StatusSuccessText
                         )
