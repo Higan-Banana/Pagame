@@ -2,103 +2,119 @@ package gt.pagame.app.ui.navigation
 
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import gt.pagame.app.ui.components.PagameBottomBar
-import gt.pagame.app.ui.screens.eventdetail.EventDetailScreen
-import gt.pagame.app.ui.screens.eventdetail.EventDetailViewModel
-import gt.pagame.app.ui.screens.events.EventsScreen
-import gt.pagame.app.ui.screens.events.EventsViewModel
-import gt.pagame.app.ui.screens.friends.FriendsScreen
-import gt.pagame.app.ui.screens.friends.FriendsViewModel
-import gt.pagame.app.ui.screens.login.LoginScreen
-import gt.pagame.app.ui.screens.login.LoginViewModel
-import gt.pagame.app.ui.screens.options.OptionsScreen
-import gt.pagame.app.ui.screens.options.OptionsViewModel
-import gt.pagame.app.ui.screens.register.RegisterScreen
-import gt.pagame.app.ui.screens.register.RegisterViewModel
 import androidx.compose.material.icons.filled.Add
-import gt.pagame.app.ui.components.PagameExtendedFab
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
+import androidx.navigation.compose.*
+import androidx.navigation.navArgument
+import gt.pagame.app.data.repository.*
+import gt.pagame.app.ui.components.*
+import gt.pagame.app.ui.screens.eventdetail.*
+import gt.pagame.app.ui.screens.events.*
+import gt.pagame.app.ui.screens.friends.*
+import gt.pagame.app.ui.screens.login.*
+import gt.pagame.app.ui.screens.options.*
+import gt.pagame.app.ui.screens.register.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 @Composable
-fun PagameNavGraph(
-    navController: NavHostController = rememberNavController()
-) {
-    NavHost(
-        navController = navController,
-        startDestination = Screen.Login.route,
-        enterTransition = { EnterTransition.None },
-        exitTransition = { ExitTransition.None },
-        popEnterTransition = { EnterTransition.None },
-        popExitTransition = { ExitTransition.None }
-    ) {
-        // 1. Login Screen
-        composable(Screen.Login.route) {
-            val loginViewModel: LoginViewModel = viewModel()
-            LoginScreen(
-                viewModel = loginViewModel,
-                onNavigateToRegister = { navController.navigate(Screen.Register.route) },
-                onLoginSuccess = {
-                    navController.navigate(Screen.Main.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
+fun PagameNavGraph() {
+    val repository = PagameRepository.instance
+    val uid by repository.sessionUid.collectAsState()
+    val people by repository.people.collectAsState()
+    val user by repository.currentUser.collectAsState()
+    val checked by repository.profileChecked.collectAsState()
+    val registering by repository.registering.collectAsState()
+    val loading by repository.loading.collectAsState()
+    val error by repository.error.collectAsState()
+    CompositionLocalProvider(LocalPeople provides people, LocalCurrentUid provides uid.orEmpty()) {
+        key(uid) {
+            val navController = rememberNavController()
+            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                if (uid != null && registering) {
+                    ProfileLoading("Creando cuenta…")
+                } else if (uid != null && user.id.isBlank()) {
+                    ProfileSetup(loading = !checked, error = error)
+                } else {
+                    NavHost(navController = navController,
+                        startDestination = if (uid == null) Screen.Login.route else Screen.Main.route,
+                        enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None },
+                        popEnterTransition = { EnterTransition.None }, popExitTransition = { ExitTransition.None }) {
+                        if (uid == null) {
+                            composable(Screen.Login.route) {
+                                LoginScreen(viewModel(), onNavigateToRegister = { navController.navigate(Screen.Register.route) }, onLoginSuccess = {})
+                            }
+                            composable(Screen.Register.route) {
+                                RegisterScreen(viewModel(), onNavigateBack = { navController.popBackStack() },
+                                    onNavigateToLogin = { navController.popBackStack() }, onRegisterSuccess = {})
+                            }
+                        } else {
+                            composable(Screen.Main.route) {
+                                MainContainer(onNavigateToEventDetail = { navController.navigate(Screen.EventDetail.createRoute(it)) }, onLogoutSuccess = {})
+                            }
+                            composable(Screen.EventDetail.route, arguments = listOf(navArgument("eventId") { type = NavType.StringType })) {
+                                EventDetailScreen(viewModel(), onNavigateBack = { navController.popBackStack() })
+                            }
+                        }
                     }
+                    if (uid != null && loading) LinearProgressIndicator(Modifier.fillMaxWidth().statusBarsPadding())
+                    if (uid != null && error != null) AlertDialog(
+                        onDismissRequest = {}, title = { Text("No se pudo sincronizar") }, text = { Text(error.orEmpty()) },
+                        confirmButton = { TextButton(onClick = repository::retry) { Text("Reintentar") } },
+                        dismissButton = { TextButton(onClick = repository::signOut) { Text("Cerrar sesión") } })
                 }
-            )
+            }
         }
+    }
+}
 
-        // 2. Register Screen
-        composable(Screen.Register.route) {
-            val registerViewModel: RegisterViewModel = viewModel()
-            RegisterScreen(
-                viewModel = registerViewModel,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToLogin = { navController.popBackStack() },
-                onRegisterSuccess = {
-                    navController.navigate(Screen.Main.route) {
-                        popUpTo(Screen.Register.route) { inclusive = true }
-                    }
-                }
-            )
-        }
+@Composable
+private fun ProfileLoading(message: String) {
+    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+        verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+        CircularProgressIndicator()
+        Spacer(Modifier.height(16.dp))
+        Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
 
-        // 3. Main Container (Events, Friends, Options with Bottom Bar)
-        composable(Screen.Main.route) {
-            MainContainer(
-                onNavigateToEventDetail = { eventId ->
-                    navController.navigate(Screen.EventDetail.createRoute(eventId))
-                },
-                onLogoutSuccess = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Main.route) { inclusive = true }
-                    }
-                }
-            )
-        }
-
-        // 4. Event Detail Screen (Pizza & Birra)
-        composable(
-            route = Screen.EventDetail.route,
-            arguments = listOf(navArgument("eventId") { type = NavType.StringType })
-        ) {
-            val detailViewModel: EventDetailViewModel = viewModel()
-            EventDetailScreen(
-                viewModel = detailViewModel,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+@Composable
+private fun ProfileSetup(loading: Boolean, error: String?) {
+    if (loading && error == null) {
+        ProfileLoading("Cargando perfil…")
+        return
+    }
+    val repository = PagameRepository.instance
+    var name by rememberSaveable { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+        verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Completa tu perfil", style = MaterialTheme.typography.headlineSmall)
+        Text("Tu cuenta está creada. Guarda tu nombre para comenzar.")
+        OutlinedTextField(name, { name = it.take(60) }, label = { Text("Nombre completo") }, singleLine = true)
+        (message ?: error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        Button(enabled = name.isNotBlank() && !busy, onClick = {
+            busy = true; message = null
+            scope.launch {
+                try { repository.initProfile(name); repository.retry() }
+                catch (e: CancellationException) { throw e }
+                catch (e: Exception) { message = userMessage(e) }
+                finally { busy = false }
+            }
+        }) { Text(if (busy) "Guardando…" else "Guardar perfil") }
+        TextButton(onClick = repository::signOut) { Text("Cerrar sesión") }
     }
 }
 
@@ -116,6 +132,7 @@ fun MainContainer(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
             PagameBottomBar(
                 currentRoute = currentTab,
@@ -138,7 +155,8 @@ fun MainContainer(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = innerPadding.calculateBottomPadding())
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding)
         ) {
             when (currentTab) {
                 "events_tab" -> EventsScreen(

@@ -1,73 +1,52 @@
 package gt.pagame.app.ui.screens.events
 
+import gt.pagame.app.ui.components.*
+import gt.pagame.app.data.model.money
+import gt.pagame.app.data.model.titleInitial
+import kotlin.math.roundToLong
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.rememberScrollableState
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.EventBusy
-import androidx.compose.material.icons.filled.PersonAdd
-import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import gt.pagame.app.data.model.BalanceStatus
-import gt.pagame.app.data.model.Currency
 import gt.pagame.app.data.model.EventItem
 import gt.pagame.app.ui.components.AvatarBubble
 import gt.pagame.app.ui.components.BalanceStatusChip
 import gt.pagame.app.ui.components.PagameBottomSheet
-import gt.pagame.app.ui.components.PagameCenteredDialog
-import gt.pagame.app.ui.components.PagameExtendedFab
+import gt.pagame.app.ui.components.AddFriendDialog
 import gt.pagame.app.ui.theme.*
-
-private fun eventFriendAvatarColors(key: String): Pair<Color, Color> {
-    val palettes = listOf(
-        Color(0xFFFFEDD5) to Color(0xFFC2410C),
-        Color(0xFFFCE7F3) to Color(0xFFBE185D),
-        Color(0xFFEDE9FE) to Color(0xFF7C3AED),
-        Color(0xFFE0F2FE) to Color(0xFF0369A1),
-        Color(0xFFD1FAE5) to Color(0xFF047857),
-        Color(0xFFFEF3C7) to Color(0xFFB45309)
-    )
-    val index = (key.hashCode() and Int.MAX_VALUE) % palettes.size
-    return palettes[index]
-}
-
-private fun eventFriendPreviewEmail(name: String): String = when (name) {
-    "Mario Gómez" -> "mario.gomez@correo.gt"
-    "Carlos Mendoza" -> "carlos.mendoza@correo.gt"
-    "Diana Rivas" -> "diana.rivas@correo.gt"
-    "Vale Castillo" -> "vale.castillo@correo.gt"
-    else -> "usuario@correo.gt"
-}
 
 @Composable
 fun EventsScreen(
@@ -76,6 +55,12 @@ fun EventsScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    OperationError(uiState.errorMessage, viewModel::dismissError)
+    // Reset only after a successful creation, alongside the updated event list.
+    // A fresh state prevents keyed items from retaining the previous scroll anchor.
+    val eventListState = rememberSaveable(uiState.listResetVersion, saver = LazyListState.Saver) {
+        LazyListState(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 0)
+    }
 
     Box(
         modifier = modifier
@@ -103,34 +88,6 @@ fun EventsScreen(
                         fontWeight = FontWeight.ExtraBold
                     )
 
-                    // Empty state toggle badge
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(MaterialTheme.colorScheme.primaryContainer)
-                            .border(
-                                1.dp,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                                RoundedCornerShape(50)
-                            )
-                            .clickable { viewModel.toggleEmptyState() }
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(5.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary)
-                        )
-                        Text(
-                            text = if (uiState.isShowingEmptyState) "Ver eventos" else "Ver estado vacío",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(2.dp))
@@ -194,37 +151,41 @@ fun EventsScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Content: Event List or Empty State
-            if (uiState.events.isEmpty()) {
-                EventsEmptyState(
-                    onCreateClick = { viewModel.openCreateDialog() },
-                    modifier = Modifier.weight(1f)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                    contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp)
-                ) {
-                    items(uiState.events, key = { it.id }) { event ->
-                        EventCard(
-                            event = event,
-                            onClick = { onNavigateToDetail(event.id) }
-                        )
+            PagamePullToRefresh(Modifier.weight(1f).fillMaxWidth()) {
+                // Content: Event List or Empty State
+                if (uiState.events.isEmpty()) {
+                    EventsEmptyState(
+                        onCreateClick = { viewModel.openCreateDialog() },
+                        modifier = Modifier.fillMaxSize().scrollable(rememberScrollableState { 0f }, Orientation.Vertical)
+                    )
+                } else {
+                    LazyColumn(
+                        state = eventListState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp)
+                    ) {
+                        items(uiState.events, key = { it.id }) { event ->
+                            EventCard(
+                                event = event,
+                                onClick = { onNavigateToDetail(event.id) }
+                            )
+                        }
                     }
                 }
             }
         }
 
         // Create Event Dialog
-        if (uiState.isCreateEventDialogOpen) {
+        if (uiState.isCreateEventSheetOpen) {
             PagameBottomSheet(
                 onDismissRequest = { viewModel.closeCreateDialog() }
             ) {
                 Column(
-                    modifier = Modifier.padding(start = 24.dp, top = 22.dp, end = 24.dp),
+                    modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
+                        .padding(start = 24.dp, top = 22.dp, end = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Text(
@@ -247,6 +208,7 @@ fun EventsScreen(
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
+
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -322,7 +284,20 @@ fun EventsScreen(
                         )
                     }
 
-                    val selectedFriends = uiState.allFriends.filter { it.id in uiState.selectedFriendIds }
+                    TextButton(onClick = viewModel::openRequests, shape = RoundedCornerShape(50),
+                        modifier = Modifier.align(Alignment.End)) {
+                        Text("Solicitudes (${uiState.receivedCount})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                    uiState.friendNotice?.let { notice ->
+                        Text(notice, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                    }
+
+                    val selectedIds = remember(uiState.selectedFriendIds) {
+                        uiState.selectedFriendIds.toSet()
+                    }
+                    val selectedFriends = remember(uiState.allFriends, selectedIds) {
+                        uiState.allFriends.filter { it.id in selectedIds }
+                    }
                     if (selectedFriends.isNotEmpty()) {
                         Row(
                             modifier = Modifier
@@ -362,12 +337,14 @@ fun EventsScreen(
                         }
                     }
 
-                    val filteredFriends = uiState.allFriends.filter { friend ->
+                    val filteredFriends = remember(uiState.allFriends, uiState.friendSearchQuery) {
                         val query = uiState.friendSearchQuery.trim()
-                        query.isEmpty() ||
-                            friend.name.contains(query, ignoreCase = true) ||
-                            friend.codeOrStatus.contains(query, ignoreCase = true)
-                    }.sortedBy { it.name }
+                        uiState.allFriends.filter { friend ->
+                            query.isEmpty() ||
+                                friend.name.contains(query, ignoreCase = true) ||
+                                friend.codeOrStatus.contains(query, ignoreCase = true)
+                        }.sortedBy { it.name }
+                    }
 
                     LazyColumn(
                         modifier = Modifier
@@ -379,8 +356,8 @@ fun EventsScreen(
                             .padding(horizontal = 6.dp, vertical = 4.dp)
                     ) {
                         items(filteredFriends, key = { it.id }) { friend ->
-                            val isSelected = friend.id in uiState.selectedFriendIds
-                            val (avatarBackground, avatarContent) = eventFriendAvatarColors(friend.id)
+                            val isSelected = friend.id in selectedIds
+                            val (avatarBackground, avatarContent) = avatarColors(friend.id)
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -395,8 +372,7 @@ fun EventsScreen(
                                         .size(34.dp)
                                         .clip(CircleShape)
                                         .background(
-                                            if (isSelected) MaterialTheme.colorScheme.primary
-                                            else avatarBackground
+                                            avatarBackground
                                         ),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -404,8 +380,7 @@ fun EventsScreen(
                                         friend.initial,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                                        else avatarContent
+                                        color = avatarContent
                                     )
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
@@ -445,7 +420,7 @@ fun EventsScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = { viewModel.createEvent() },
-                        enabled = uiState.newEventTitle.isNotBlank() && uiState.selectedFriendIds.isNotEmpty(),
+                        enabled = uiState.newEventTitle.isNotBlank() && !uiState.busy,
                         shape = RoundedCornerShape(50),
                         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 11.dp)
                     ) {
@@ -455,309 +430,18 @@ fun EventsScreen(
             }
         }
 
+        if (uiState.requestsOpen) FriendRequestsSheet(onDismiss = viewModel::closeRequests)
+
         if (uiState.isAddFriendDialogOpen) {
-            AddFriendFromEventDialog(
+            AddFriendDialog(
                 friendCode = uiState.newFriendCode,
-                friendName = uiState.newFriendName,
+                friendName = uiState.foundFriendName,
+                friendColorIndex = uiState.foundFriend?.colorIndex ?: 0,
+                loading = uiState.lookupLoading, error = uiState.lookupError, busy = uiState.busy,
                 onCodeChange = viewModel::updateNewFriendCode,
                 onDismiss = viewModel::closeAddFriendDialog,
                 onAddFriend = viewModel::addFriendFromEvent
             )
-        }
-    }
-}
-
-@Composable
-private fun AddFriendFromEventDialog(
-    friendCode: String,
-    friendName: String,
-    onCodeChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onAddFriend: () -> Unit
-) {
-    PagameCenteredDialog(onDismissRequest = onDismiss) {
-        Box(
-            modifier = Modifier
-                .padding(top = 12.dp)
-                .width(46.dp)
-                .height(5.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
-                .align(Alignment.CenterHorizontally)
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 22.dp, top = 12.dp, end = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Agregar amigo",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.ExtraBold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Ingresa el código único de formato PG-XXXX para encontrarlo y agregarlo a tu círculo.",
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            IconButton(onClick = onDismiss) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Cerrar",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        Column(
-            modifier = Modifier.padding(horizontal = 22.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "CÓDIGO DE AMIGO",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 0.5.sp
-                    )
-                    Text(
-                        text = "Ejemplo: PG-5312",
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                OutlinedTextField(
-                    value = friendCode.removePrefix("PG-"),
-                    onValueChange = onCodeChange,
-                    prefix = {
-                        Text(
-                            text = "PG-",
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    },
-                    placeholder = { Text("0000") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.ConfirmationNumber,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    trailingIcon = {
-                        if (friendCode.isNotEmpty()) {
-                            IconButton(onClick = { onCodeChange("") }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Limpiar código",
-                                    modifier = Modifier.size(17.dp)
-                                )
-                            }
-                        }
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.30f),
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.30f),
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            if (friendName.isNotBlank()) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "PERSONA A AGREGAR",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 0.5.sp
-                        )
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(StatusSuccessBg)
-                                .border(1.dp, StatusSuccessBorder, RoundedCornerShape(50))
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Verified,
-                                contentDescription = null,
-                                tint = StatusSuccessText,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Text(
-                                text = "Código verificado",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = StatusSuccessText
-                            )
-                        }
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(18.dp),
-                        color = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-                            Color.White
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant
-                        },
-                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(13.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(15.dp))
-                                    .background(MaterialTheme.colorScheme.primary),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = friendName.split(" ")
-                                        .mapNotNull { it.firstOrNull() }
-                                        .take(2)
-                                        .joinToString("")
-                                        .uppercase(),
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = friendName,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.ExtraBold
-                                    )
-                                    Surface(
-                                        shape = RoundedCornerShape(50),
-                                        color = MaterialTheme.colorScheme.primaryContainer
-                                    ) {
-                                        Text(
-                                            text = friendCode,
-                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-                                            fontSize = 8.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
-                                Text(
-                                    text = eventFriendPreviewEmail(friendName),
-                                    fontSize = 10.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(StatusSuccessText)
-                                    )
-                                    Text(
-                                        text = "Cuenta activa de Pagame",
-                                        fontSize = 10.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Seleccionado",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                }
-            } else if (friendCode.length == 7) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PersonOff,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "No se encontró ningún usuario",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Verifica que el código sea correcto",
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = onDismiss) {
-                Text("Cancelar", fontWeight = FontWeight.Bold)
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(
-                onClick = onAddFriend,
-                enabled = friendName.isNotBlank(),
-                shape = RoundedCornerShape(50),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 11.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PersonAdd,
-                    contentDescription = null,
-                    modifier = Modifier.size(17.dp)
-                )
-                Spacer(modifier = Modifier.width(7.dp))
-                Text("Agregar amigo", fontWeight = FontWeight.ExtraBold)
-            }
         }
     }
 }
@@ -805,13 +489,14 @@ fun EventCard(
                             .size(50.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .background(
-                                if (event.categoryIcon == "🌮") Color(0xFFE6F7F0) else Color(0xFFFEF3C7)
+                                MaterialTheme.colorScheme.primaryContainer
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = event.categoryIcon,
-                            fontSize = 24.sp
+                            text = titleInitial(event.title),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.Bold, fontSize = 24.sp
                         )
                     }
 
@@ -838,7 +523,7 @@ fun EventCard(
                                 )
                             }
                             Text(
-                                text = "${event.dateOrSubtitle} • ${event.participantCount} participantes",
+                                text = "${event.createdAtLabel}\n${event.participantCount} participantes\nCreado por: ${event.createdByName}",
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -856,7 +541,7 @@ fun EventCard(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Q${String.format("%,d", event.totalAmount.toInt())}",
+                        text = money((event.totalAmount * 100).roundToLong(), event.currency),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold,
                         color = if (event.balanceStatus == BalanceStatus.YOU_ARE_OWED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
@@ -874,31 +559,17 @@ fun EventCard(
             ) {
                 // Stack of participant avatars
                 Row(horizontalArrangement = Arrangement.spacedBy((-6).dp)) {
-                    event.participantInitials.forEachIndexed { index, initial ->
-                        val bg = when (index % 4) {
-                            0 -> Color(0xFFFEF3C7)
-                            1 -> Color(0xFFFCE7F3)
-                            2 -> Color(0xFFE0E7FF)
-                            else -> MaterialTheme.colorScheme.surfaceVariant
-                        }
-                        val textColor = when (index % 4) {
-                            0 -> Color(0xFF92400E)
-                            1 -> Color(0xFF9D174D)
-                            2 -> Color(0xFF3730A3)
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                        AvatarBubble(
-                            text = initial,
-                            backgroundColor = bg,
-                            textColor = textColor,
-                            size = 28.dp
-                        )
-                    }
+                    event.participantIds.take(3).forEach { uid -> ProfileAvatar(uid, 28.dp) }
+                    if (event.participantIds.size > 3) AvatarBubble(
+                        text = "+${event.participantIds.size - 3}",
+                        backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                        textColor = MaterialTheme.colorScheme.onSurfaceVariant, size = 28.dp)
+
                 }
 
                 BalanceStatusChip(
                     status = event.balanceStatus,
-                    amount = event.balanceAmount
+                    amount = event.balanceAmount, currency = event.currency
                 )
             }
         }
@@ -962,16 +633,5 @@ fun EventsEmptyState(
             Spacer(modifier = Modifier.width(6.dp))
             Text("Crear nuevo evento", fontWeight = FontWeight.Bold)
         }
-    }
-}
-
-@Preview(showBackground = true, widthDp = 390, heightDp = 844)
-@Composable
-fun EventsScreenPreview() {
-    PagameTheme {
-        EventsScreen(
-            viewModel = EventsViewModel(),
-            onNavigateToDetail = {}
-        )
     }
 }

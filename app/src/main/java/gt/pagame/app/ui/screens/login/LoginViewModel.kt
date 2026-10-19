@@ -1,49 +1,42 @@
 package gt.pagame.app.ui.screens.login
 
 import androidx.lifecycle.ViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import androidx.lifecycle.viewModelScope
+import gt.pagame.app.data.repository.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 
 data class LoginUiState(
-    val emailOrPhone: String = "mateo@universidad.edu.gt",
-    val password: String = "mateo12345",
-    val isPasswordVisible: Boolean = false,
-    val rememberAccount: Boolean = true,
-    val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val email: String = "", val password: String = "", val isPasswordVisible: Boolean = false,
+    val isLoading: Boolean = false, val errorMessage: String? = null, val notice: String? = null
 )
-
 class LoginViewModel : ViewModel() {
+    private val repository = PagameRepository.instance
     private val _uiState = MutableStateFlow(LoginUiState())
-    val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
-
-    fun onEmailChanged(value: String) {
-        _uiState.update { it.copy(emailOrPhone = value, errorMessage = null) }
-    }
-
-    fun onPasswordChanged(value: String) {
-        _uiState.update { it.copy(password = value, errorMessage = null) }
-    }
-
-    fun togglePasswordVisibility() {
-        _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
-    }
-
-    fun toggleRememberAccount(checked: Boolean) {
-        _uiState.update { it.copy(rememberAccount = checked) }
-    }
-
-    fun login(onSuccess: () -> Unit) {
-        val state = _uiState.value
-        if (state.emailOrPhone.isBlank() || state.password.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Por favor ingresa tu correo y contraseña") }
-            return
+    val uiState = _uiState.asStateFlow()
+    fun onEmailChanged(value: String) { _uiState.update { it.copy(email = value, errorMessage = null) } }
+    fun onPasswordChanged(value: String) { _uiState.update { it.copy(password = value, errorMessage = null) } }
+    fun togglePasswordVisibility() { _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) } }
+    fun login(onSuccess: () -> Unit) = execute {
+        val s = _uiState.value
+        if (s.email.isBlank() || s.password.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Ingresa tu correo y contraseña") }; return@execute
         }
-        _uiState.update { it.copy(isLoading = true) }
-        // Emulate realistic auth validation
-        _uiState.update { it.copy(isLoading = false) }
-        onSuccess()
+        repository.login(s.email, s.password); onSuccess()
+    }
+    fun resetPassword() = execute {
+        val email = _uiState.value.email
+        if (email.isBlank()) { _uiState.update { it.copy(errorMessage = "Escribe tu correo para recuperar la contraseña") }; return@execute }
+        repository.resetPassword(email)
+        _uiState.update { it.copy(notice = "Revisa tu correo para restablecer la contraseña") }
+    }
+    private fun execute(action: suspend () -> Unit) {
+        if (_uiState.value.isLoading) return
+        _uiState.update { it.copy(isLoading = true, errorMessage = null, notice = null) }
+        viewModelScope.launch {
+            try { action() } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { _uiState.update { it.copy(errorMessage = userMessage(e)) } }
+            finally { _uiState.update { it.copy(isLoading = false) } }
+        }
     }
 }

@@ -20,10 +20,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import gt.pagame.app.ui.components.GuatemalaAvailabilityBadge
 import gt.pagame.app.ui.components.PagameInputField
 import gt.pagame.app.ui.components.PagamePrimaryButton
 import gt.pagame.app.ui.theme.*
@@ -46,7 +44,6 @@ fun RegisterScreen(
         onConfirmPasswordChange = viewModel::onConfirmPasswordChanged,
         onTogglePasswordVisibility = viewModel::togglePasswordVisibility,
         onToggleConfirmPasswordVisibility = viewModel::toggleConfirmPasswordVisibility,
-        onToggleTerms = viewModel::toggleTerms,
         onRegisterClick = { viewModel.register(onRegisterSuccess) },
         onNavigateBack = onNavigateBack,
         onNavigateToLogin = onNavigateToLogin,
@@ -63,7 +60,6 @@ fun RegisterContent(
     onConfirmPasswordChange: (String) -> Unit,
     onTogglePasswordVisibility: () -> Unit,
     onToggleConfirmPasswordVisibility: () -> Unit,
-    onToggleTerms: (Boolean) -> Unit,
     onRegisterClick: () -> Unit,
     onNavigateBack: () -> Unit,
     onNavigateToLogin: () -> Unit,
@@ -75,7 +71,7 @@ fun RegisterContent(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
+            .safeDrawingPadding()
             .verticalScroll(scrollState)
             .padding(bottom = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -106,7 +102,6 @@ fun RegisterContent(
                 )
             }
 
-            GuatemalaAvailabilityBadge(isSubtle = false)
         }
 
         // Title and Subtitle
@@ -120,7 +115,7 @@ fun RegisterContent(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Crear cuenta",
+                    text = if (uiState.isLoading) "Creando cuenta…" else "Crear cuenta",
                     style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.ExtraBold
@@ -156,15 +151,15 @@ fun RegisterContent(
                 value = uiState.fullName,
                 onValueChange = onFullNameChange,
                 label = "Nombre completo",
-                placeholder = "Ej. Mateo González",
+                placeholder = "Tu nombre completo",
                 leadingIcon = Icons.Default.Person
             )
 
             PagameInputField(
-                value = uiState.emailOrPhone,
+                value = uiState.email,
                 onValueChange = onEmailChange,
-                label = "Correo electrónico o teléfono",
-                placeholder = "mateo@universidad.edu.gt",
+                label = "Correo electrónico",
+                placeholder = "nombre@correo.com",
                 leadingIcon = Icons.Default.Mail
             )
 
@@ -236,31 +231,6 @@ fun RegisterContent(
                 }
             )
 
-            // Terms checkbox
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                Checkbox(
-                    checked = uiState.acceptedTerms,
-                    onCheckedChange = onToggleTerms,
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = MaterialTheme.colorScheme.primary,
-                        uncheckedColor = MaterialTheme.colorScheme.outline
-                    ),
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "Acepto los Términos de servicio y las Políticas de privacidad.",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 17.sp
-                )
-            }
-
             if (uiState.errorMessage != null) {
                 Text(
                     text = uiState.errorMessage,
@@ -270,7 +240,8 @@ fun RegisterContent(
             }
 
             PagamePrimaryButton(
-                text = "Crear cuenta",
+                text = if (uiState.isLoading) "Creando cuenta…" else "Crear cuenta",
+                enabled = !uiState.isLoading,
                 onClick = onRegisterClick,
                 modifier = Modifier.padding(top = 8.dp)
             )
@@ -301,43 +272,6 @@ fun RegisterContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Lock,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(13.dp)
-            )
-            Text(
-                text = "Pagame para Android • Material 3",
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
         Spacer(modifier = Modifier.height(12.dp))
-    }
-}
-
-@Preview(showBackground = true, widthDp = 390, heightDp = 844)
-@Composable
-fun RegisterScreenPreview() {
-    PagameTheme {
-        RegisterContent(
-            uiState = RegisterUiState(),
-            onFullNameChange = {},
-            onEmailChange = {},
-            onPasswordChange = {},
-            onConfirmPasswordChange = {},
-            onTogglePasswordVisibility = {},
-            onToggleConfirmPasswordVisibility = {},
-            onToggleTerms = {},
-            onRegisterClick = {},
-            onNavigateBack = {},
-            onNavigateToLogin = {}
-        )
     }
 }

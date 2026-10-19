@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -25,10 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import gt.pagame.app.ui.components.GuatemalaAvailabilityBadge
 import gt.pagame.app.ui.components.PagameInputField
 import gt.pagame.app.ui.components.PagamePrimaryButton
 import gt.pagame.app.ui.theme.*
@@ -47,7 +44,7 @@ fun LoginScreen(
         onEmailChange = viewModel::onEmailChanged,
         onPasswordChange = viewModel::onPasswordChanged,
         onTogglePasswordVisibility = viewModel::togglePasswordVisibility,
-        onToggleRemember = viewModel::toggleRememberAccount,
+        onResetPassword = viewModel::resetPassword,
         onLoginClick = { viewModel.login(onLoginSuccess) },
         onNavigateToRegister = onNavigateToRegister,
         modifier = modifier
@@ -60,7 +57,7 @@ fun LoginContent(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onTogglePasswordVisibility: () -> Unit,
-    onToggleRemember: (Boolean) -> Unit,
+    onResetPassword: () -> Unit,
     onLoginClick: () -> Unit,
     onNavigateToRegister: () -> Unit,
     modifier: Modifier = Modifier
@@ -71,33 +68,11 @@ fun LoginContent(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
+            .safeDrawingPadding()
             .verticalScroll(scrollState)
             .padding(bottom = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
-        // Version tag on top right
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            horizontalArrangement = Arrangement.End
-        ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = "v2.4",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -152,7 +127,6 @@ fun LoginContent(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        GuatemalaAvailabilityBadge(isSubtle = true)
 
         Spacer(modifier = Modifier.height(28.dp))
 
@@ -164,10 +138,10 @@ fun LoginContent(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             PagameInputField(
-                value = uiState.emailOrPhone,
+                value = uiState.email,
                 onValueChange = onEmailChange,
-                label = "Correo electrónico o teléfono",
-                placeholder = "tu@correo.com o teléfono",
+                label = "Correo electrónico",
+                placeholder = "tu@correo.com",
                 leadingIcon = Icons.Default.Mail
             )
 
@@ -184,7 +158,7 @@ fun LoginContent(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable { }
+                        modifier = Modifier.clickable { onResetPassword() }
                     )
                 },
                 trailingIcon = {
@@ -199,55 +173,6 @@ fun LoginContent(
                 }
             )
 
-            // Remember checkbox & Secure session indicator
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { onToggleRemember(!uiState.rememberAccount) }
-                ) {
-                    Checkbox(
-                        checked = uiState.rememberAccount,
-                        onCheckedChange = onToggleRemember,
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = MaterialTheme.colorScheme.primary,
-                            uncheckedColor = MaterialTheme.colorScheme.outline
-                        ),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Recordar mi cuenta",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.VerifiedUser,
-                        contentDescription = null,
-                        tint = StatusSuccessText,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Text(
-                        text = "Sesión segura",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
             if (uiState.errorMessage != null) {
                 Text(
                     text = uiState.errorMessage,
@@ -257,53 +182,15 @@ fun LoginContent(
                 )
             }
 
+            uiState.notice?.let { Text(it, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp) }
+
             PagamePrimaryButton(
-                text = "Iniciar sesión",
+                text = if (uiState.isLoading) "Ingresando…" else "Iniciar sesión",
+                enabled = !uiState.isLoading,
                 onClick = onLoginClick,
                 modifier = Modifier.padding(top = 8.dp)
             )
 
-            // Active account demo banner
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(StatusAmberBg.copy(alpha = 0.7f))
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = StatusAmberText,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "Cuenta activa: Mateo González",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = StatusAmberText
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(StatusAmberBg)
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = "Demo",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = StatusAmberText
-                    )
-                }
-            }
         }
 
         Spacer(modifier = Modifier.weight(1f, fill = false))
@@ -331,38 +218,6 @@ fun LoginContent(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        Text(
-            text = "Al continuar, aceptas las Políticas de Privacidad de Pagame.",
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Text(
-            text = "Pagame para Android • Material 3",
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
         Spacer(modifier = Modifier.height(12.dp))
-    }
-}
-
-@Preview(showBackground = true, widthDp = 390, heightDp = 844)
-@Composable
-fun LoginScreenPreview() {
-    PagameTheme {
-        LoginContent(
-            uiState = LoginUiState(),
-            onEmailChange = {},
-            onPasswordChange = {},
-            onTogglePasswordVisibility = {},
-            onToggleRemember = {},
-            onLoginClick = {},
-            onNavigateToRegister = {}
-        )
     }
 }

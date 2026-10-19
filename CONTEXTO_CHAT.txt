@@ -1,0 +1,175 @@
+CONTEXTO ACTUAL DEL PROYECTO PAGAMEG
+Actualizado: 19 de octubre de 2026 — America/Guatemala
+Carpeta de trabajo: C:\AndroidS\PagameG
+
+1. CÓMO INTERPRETAR ESTE DOCUMENTO
+
+Este documento resume el historial relevante hasta la limpieza de documentación. No es una transcripción literal ni demuestra qué APK está instalado en los teléfonos o qué reglas están publicadas.
+El código actual de C:\AndroidS\PagameG es la fuente de verdad. Las instrucciones nuevas del usuario reemplazan decisiones anteriores cuando se contradicen.
+No recuperar ZIP antiguos, deshacer cambios locales ni reimplementar solicitudes históricas para hacer coincidir el proyecto con una entrega anterior.
+El usuario pide cambios directamente en esta carpeta. Esta actualización documental no autoriza cambios funcionales nuevos, publicaciones, eliminación de datos de Firebase ni envío de mensajes.
+
+2. OBJETIVO Y PREFERENCIAS DEL USUARIO
+
+Pagame es una aplicación Android para dividir gastos entre amigos por eventos.
+- Responder en español claro y preferentemente con voseo.
+- Trabajar sobre la versión actual y preservar los cambios locales del usuario.
+- Conservar diseño y funcionamiento salvo que el pedido los modifique expresamente.
+- Modificar únicamente lo necesario para el pedido; no actualizar dependencias o versiones por iniciativa propia.
+- No cargar datos de prueba al iniciar la aplicación ni crear usuarios, amigos o eventos de ejemplo en Firebase.
+- El usuario aclaró que los ejemplos de código y las pruebas sí pueden permanecer. FriendDirectory se conserva como ejemplo y no es el buscador real.
+- Mantener arquitectura compatible con el plan Spark, sin introducir Cloud Functions ni servicios que requieran Blaze.
+- Distinguir siempre código modificado, pruebas realizadas, APK compilado/instalado y reglas publicadas.
+- No borrar historial de pagos ni datos remotos para resolver errores.
+- Evitar pedir confirmaciones innecesarias cuando el alcance ya está autorizado. Una solicitud de explicación no autoriza modificar código.
+
+3. ESTADO TÉCNICO ACTUAL
+
+Paquete: gt.pagame.app. Gradle declara versionName 2.4, versionCode 24, minSdk 24, compileSdk/targetSdk 37. Criterios del daemon: JDK 21; destino Java del código: 17. Revisar los archivos actuales antes de cambiar configuración.
+Interfaz: Kotlin y Jetpack Compose con Material 3. Datos: Firebase Authentication y Cloud Firestore mediante SDK Android, listeners y transacciones.
+Room y KSP se retiraron porque la implementación Room no tenía consumidores. Se eliminaron EventDao, EventEntity y PagameDatabase y sus dependencias. No se añadió otra base de datos local.
+Se conservan la caché habitual de Firestore, la sesión administrada por Authentication y SharedPreferences privadas para borradores. Los StateFlow y cálculos derivados viven en memoria.
+No se garantiza que cualquier acción sin conexión se encole: las transacciones necesitan conexión. Los ejemplos no se cargan en las pantallas de producción.
+
+4. ARQUITECTURA Y ARCHIVOS PRINCIPALES
+
+Rutas relativas a app/src/main/java/gt/pagame/app/:
+- MainActivity.kt: arranque, tema y barras del sistema.
+- ui/navigation/Screen.kt: rutas Login, Register, Main y EventDetail con eventId.
+- ui/navigation/NavGraph.kt: navegación por sesión, creación/carga del perfil, pestañas principales y errores de sincronización.
+- ui/screens/login y register: formularios, validaciones y llamadas al repositorio para Authentication.
+- ui/screens/events: lista y formulario de eventos; mantiene selección y búsqueda al agregar amigos.
+- ui/screens/friends: amigos, códigos, solicitudes y eliminación de amistad.
+- ui/screens/eventdetail: gastos, balances, participantes, borradores, pagos y eliminación del evento.
+- ui/screens/options: perfil, nombre, color, moneda, tema, compartir código, recuperación de contraseña y acciones de cuenta.
+- data/repository/PagameRepository.kt: instancia compartida; acceso a Authentication/Firestore, transacciones, listeners, refresh, perfiles y StateFlow.
+- data/repository/ExpenseDraftStore.kt: ExpenseDraft y almacenamiento local privado, por usuario y evento.
+- data/model/SparkEvents.kt: creación, decodificación, validación de operaciones y generación de diez ledgers. PagameValidationException comunica rechazos de negocio.
+- data/model/EventAccounting.kt: totales, balances y contadores. OnlineEvent guarda el cálculo por objeto y lo renueva al recibir un snapshot nuevo.
+- data/model/Models.kt: perfiles, tarjetas, evento completo, gastos, pagos, sugerencias, monedas, estados, formato monetario e iniciales.
+- data/model/ExpenseInput.kt: edición de montos y truncado seguro frente a pares sustitutos UTF-16.
+- data/model/FriendCode.kt: normalización y formato PG de cuatro dígitos para búsquedas reales.
+- data/model/FriendRequest.kt: solicitud e identificación de la otra persona.
+- data/model/FriendDirectory.kt: ejemplos históricos sin consumidores en las pantallas actuales; conservar por preferencia del usuario.
+- ui/components/CommonComponents.kt: botones, campos, avisos, avatares, barra inferior, hojas y diálogos.
+- ui/components/AddFriendDialog.kt: formulario compartido por Amigos y Crear evento.
+- ui/components/FriendRequestsSheet.kt: recibidas y enviadas; llama al repositorio directamente, sin ViewModel propio.
+- ui/components/OnlineUi.kt: perfiles compartidos con Compose, colores de avatar y errores.
+- ui/components/ConnectionStatus.kt: conectividad reportada por Android, sin garantizar disponibilidad de Firebase.
+- ui/components/PagamePullToRefresh.kt: actualización manual, errores y cierre del indicador.
+
+5. FUNCIONES Y REGLAS DE NEGOCIO VIGENTES
+
+CUENTA
+Registro e inicio por correo y contraseña. La sesión se conserva mediante Firebase. Si Authentication existe pero falta el perfil, se muestra Completa tu perfil.
+El código PG se reserva atómicamente. Se puede editar nombre y color y compartir/copiar el código. Monedas: GTQ, USD y EUR; el cambio afecta eventos nuevos, sin convertir los anteriores. Tema claro/oscuro/sistema.
+Eliminar cuenta exige autenticación reciente y ausencia de eventos asociados. Se eliminan preferencias y código, se conserva un perfil marcado Usuario eliminado y se solicita eliminar la cuenta de Authentication. No afirmar que todos estos pasos forman una transacción única con Authentication.
+
+AMIGOS
+Escribir cuatro dígitos tras el prefijo PG-. Consultar usuarios reales en Firebase, sin pedir el nombre para agregarlos.
+Enviar solicitud, aceptar, rechazar y cancelar. La aceptación agrega la relación a ambos usuarios de forma atómica. Cualquiera de los dos puede eliminarla, con confirmación y sin borrar eventos, gastos o pagos compartidos.
+Confirmar amistad sirve para relaciones históricas unilaterales. No aceptar ni seleccionar amigos automáticamente.
+Solicitudes recibidas: contador antes de la palabra Solicitudes. No hay notificaciones push implementadas; el estado se observa dentro de la app.
+
+EVENTOS
+Crear con nombre y amigos seleccionados. Aparecen primero los recientes y la lista se reinicia arriba tras crear.
+Se puede abrir Agregar amigo o Solicitudes desde el formulario sin perder nombre ni selección.
+El organizador es ownerId y se identifica en la lista y el detalle como Creado por.
+Solo el organizador cambia participantes o elimina el evento vacío. Debe permanecer en el evento. No se permite retirar participantes con gastos o pagos asociados.
+La eliminación requiere ausencia de gastos, pagos confirmados y pago pendiente.
+
+GASTOS
+Cualquier participante puede agregar un gasto. El autor se guarda en createdBy, independientemente del payerId.
+Las tarjetas muestran Agregado por, Pagó y fecha. Editar conserva el autor original. Solo autor u organizador editan/eliminan.
+El repositorio también observa los perfiles de los autores de gastos, aunque dejen de ser participantes, para mantener su identificación.
+Concepto, monto, pagador y participantes. Los gastos más recientes se muestran arriba.
+Montos en centavos enteros. Entrada entre 0.01 y 1,000,000.00 con hasta dos decimales. Coma decimal se normaliza a punto; no admitir miles, signos, letras o exponentes mediante limpieza silenciosa.
+El máximo aparece como placeholder al estar vacío, no como una nota permanente.
+
+BALANCES Y PAGOS
+Reparto determinista en centavos; los sobrantes se asignan según identificadores ordenados.
+Solo los pagos confirmados ajustan los balances. El deudor informa un pago y el receptor confirma Sí, lo recibí o rechaza Aún no. Solo el receptor resuelve el pendiente.
+Actualmente se permite un pago pendiente por evento.
+Editar/borrar gastos no elimina pagos pendientes ni el historial confirmado. Quitar y volver a incluir a alguien en el mismo gasto no debe borrar lo pagado. Un cambio real de deuda sí puede generar un saldo nuevo.
+Guardar un gasto sin cambios no debe incrementar la revisión innecesariamente.
+La aplicación registra acuerdos de pago; no efectúa transferencias bancarias.
+
+BORRADORES
+Solo para gastos nuevos, no para edición. Locales en SharedPreferences; clave por uid y eventId; 30 minutos desde la última edición/cierre.
+Guardan concepto, monto, pagador y participantes. Ya no guardan emoji en borradores nuevos.
+Además de la clave, los nuevos contenidos incluyen uid y eventId y se verifican al leer. Los borradores antiguos sin estos campos siguen siendo legibles únicamente desde su clave original.
+Al volver al mismo evento se ofrece continuar o crear uno nuevo. Crear uno nuevo elimina ese borrador; cerrar la pregunta lo conserva. Se elimina tras guardar correctamente o eliminar el evento.
+No restaurar si ya existe un gasto con el mismo ID; filtrar personas que ya no pertenecen al evento.
+
+6. ÚLTIMA DECISIÓN SOBRE EMOJIS E INICIALES
+
+La solicitud de permitir cualquier emoji y validarlo exclusivamente fue REEMPLAZADA.
+Decisión vigente: quitar todos los selectores y validaciones de emojis y mostrar la primera letra del evento o gasto.
+Se retiraron EmojiInput.kt, ExpenseEmojiPicker.kt, el generador, los datos Unicode, sus pruebas específicas y el bloque de validación de firestore.rules.
+La función titleInitial usa la primera letra Unicode, en mayúscula. Si no hay letras, usa el primer dígito; si tampoco hay dígitos, muestra ?. Evita cortar caracteres suplementarios.
+Los nuevos eventos y gastos no necesitan guardar emoji. Los campos históricos siguen siendo admitidos por el esquema; se ignoran al dibujar las tarjetas y se conserva el metadato antiguo al editar un gasto existente. No reintroducir validación ni selector por instrucciones históricas.
+
+7. DISEÑO Y DECISIONES QUE SE DEBEN CONSERVAR
+
+Fondos claros, tarjetas redondeadas, color rojo/terracota de acción y avatares circulares de colores; también existe tema oscuro.
+Crear evento, agregar/editar gasto y editar participantes son hojas inferiores. Mantener insets del sistema, edge-to-edge y acceso al teclado; no ocultar la navegación ni introducir modo inmersivo.
+Los botones se adaptan al texto: se revirtió igualar a la fuerza Crear evento y Agregar gasto porque se cortaban.
+Opciones usa tarjetas coherentes con Preferencias; Editar nombre y Cambiar color juntos y centrados, pulsación redondeada, Compartir código centrado, Moneda/Tema desplegables.
+Conservar el aviso propio de copiar código en todas las versiones Android; el usuario revirtió ocultarlo en Android 13+. Texto de avisos centrado.
+Participantes se editan desde su botón/tarjeta, no tocando la cantidad bajo el nombre. Conservar buscador y resumen de cambios, sin cortar avatares o marcas de selección.
+Los encabezados reservan espacio para total/eliminar y nombres largos. Fecha/hora y cantidad de participantes se separan en eventos.
+La última modificación en Amigos redujo el margen derecho de los contenedores a 8 dp, mantuvo los botones a la derecha y redujo el espacio inferior de la lista de 96 a 16 dp para aprovechar la pantalla. Falta validarlo visualmente.
+
+8. CAMBIOS DE NOMBRES YA APLICADOS
+
+El usuario autorizó únicamente renombres de variables para corregir nombres engañosos; se comprobó que esa intervención no alteró lógica ni textos estáticos:
+emailOrPhone → email
+isVerified → isEmailVerified
+dateOrSubtitle y timeFormatted → createdAtLabel en sus respectivos modelos
+categoryIcon → emoji (ese campo de modelo quedó después como metadato legado; la tarjeta actual usa titleInitial)
+isCreateEventDialogOpen → isCreateEventSheetOpen
+isAddExpenseDialogOpen → isExpenseSheetOpen
+newExpensePayer → expensePayerName
+newFriendName → foundFriendName
+snackbarMessage → noticeMessage
+payerOptions → payerNames
+allFriends → participantCandidates SOLO en el detalle del evento
+editableIds → nonOwnerParticipantIds
+No convertir una petición futura de renombrado en una refactorización funcional.
+
+9. FIRESTORE Y SEGURIDAD
+
+Archivos de la raíz: firestore.rules, firestore.indexes.json y firebase.json. El README integra la configuración que antes estaba en README_FIREBASE.md.
+Colecciones: profiles/{uid} (perfil público, sin correo), users/{uid} (preferencias y amigos privados), friendCodes/{PG-XXXX}, friendRequests/{sender}~{recipient}, events/{id}.
+Eventos schemaVersion 2: título, ownerId, participantes, slots, moneda, gastos, pagos, pendingPayment, revisión, fechas y lastChange. Diez documentos ledger mantienen saldos y contadores por slots y se actualizan con el evento atómicamente.
+Las reglas limitan acceso, autoría, amistades recíprocas, participantes, cambios de gastos y confirmaciones de pagos. La última versión no valida emojis y acepta eventos/gastos sin ese campo.
+Los valores lastChange.kind e id se validan como texto; cambios de participantes usan id vacío.
+La carpeta verification contiene el intérprete local, escenarios y suite oficial de emulador. Esas herramientas no forman parte del APK ni prueban por sí mismas las reglas desplegadas.
+No se publicó nada en Firebase desde este chat. El usuario mostró una marca junto al bloque de emojis, luego aclaró que podía ser un comentario; nunca se obtuvo un mensaje que confirmara un error de compilación. Posteriormente pidió retirar totalmente esa función.
+Un cambio de reglas local requiere publicación aparte; uno de interfaz requiere compilar e instalar el APK. No prometer que las reglas publicadas actualizan la pantalla instalada.
+
+10. PRUEBAS Y PENDIENTES REALES
+
+Último estado funcional comprobado antes de esta limpieza documental:
+- 27 pruebas Kotlin de modelos y estado de detalle aprobadas con compilador 2.2.10 de caché y JUnit 4.13.2, fuera de Gradle. Las declaraciones del estado de detalle se extrajeron a un archivo temporal de build para poder probarlas sin Android. No equivale a compilar ViewModels, Compose o el APK.
+- 41 escenarios del intérprete local de reglas aprobados. Incluyen alta de gastos por otro participante, conservación del autor, rechazo de autor falsificado y eventos/gastos sin emoji.
+- Los borradores por usuario/evento y la comprobación adicional se revisaron estáticamente; no se probaron ejecutando SharedPreferences en Android.
+- Gradle falló antes de compilar con java.io.IOException: Unable to establish loopback connection. Se intentó con caché local, sin daemon y con Java de Android Studio. Antes hubo restricciones de acceso a cachés/red. No cambiar versiones para ocultar ese bloqueo.
+- No se completó el emulador oficial de Firestore ni una compilación final del APK.
+- No se verificaron visualmente en un dispositivo las iniciales, etiquetas de autor, distribución de Amigos ni todos los insets.
+- No está confirmada la publicación remota de las reglas ni qué APK tiene cada teléfono.
+
+Pendientes: compilar desde Android Studio; probar reglas con el emulador oficial; verificar con dos cuentas amistades, autores/pagadores, gastos agregados por distintos miembros, pagos, ediciones y borradores separados por evento/usuario; comprobar Amigos, nombres largos y navegación con gestos/tres botones.
+No hay una solicitud funcional adicional por implementar como parte de la limpieza actual.
+
+11. GIT Y LIMPIEZA DOCUMENTAL
+
+Se completó .gitignore para excluir builds de todos los módulos, cachés Gradle/Kotlin, configuración local del IDE/SDK, claves de firma, APK/AAB, dependencias Node, logs y variables de entorno locales. Se mantienen código, reglas, pruebas, Gradle Wrapper y plantillas de ejemplo. Un archivo ya rastreado por Git no deja de rastrearse solo por agregarlo al ignore; no se quitó nada del índice por esa petición.
+La carpeta ya tenía numerosos cambios locales y archivos no rastreados al comenzar. No se hicieron commits, resets ni despliegues.
+Git detectó propiedad diferente de la carpeta: para lecturas se usó git -c safe.directory=C:/AndroidS/PagameG, sin cambiar la configuración global.
+
+Petición más reciente del usuario: actualizar este contexto hasta el estado actual, quitar documentación innecesaria y dejar README con funciones y configuración de la app.
+Se consolidan los informes históricos CAMBIOS_*.txt, *_LEER.txt, README_FIREBASE.md, EDGE_TO_EDGE.md y REVISION_CODIGO.md en este contexto y README; se eliminan esos documentos redundantes.
+Se conserva verification/README.md como guía técnica vigente de las pruebas. No se borran código, pruebas, recursos, configuración, cachés, datos de Firebase ni documentos ajenos a estos informes por esta limpieza.
+
+Al retomar: leer este contexto y el código pertinente, respetar instrucciones nuevas y cambios locales, realizar solo lo autorizado y reportar con precisión qué se verificó y qué sigue pendiente.

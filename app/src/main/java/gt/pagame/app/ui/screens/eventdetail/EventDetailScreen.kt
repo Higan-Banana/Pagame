@@ -1,5 +1,10 @@
 package gt.pagame.app.ui.screens.eventdetail
 
+import gt.pagame.app.data.model.*
+import gt.pagame.app.ui.components.*
+import kotlin.math.roundToLong
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,8 +25,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -29,32 +39,16 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import gt.pagame.app.data.model.ExpenseItem
 import gt.pagame.app.data.model.FriendItem
+import gt.pagame.app.data.model.titleInitial
 import gt.pagame.app.ui.components.PagameExtendedFab
 import gt.pagame.app.ui.components.PagameBottomSheet
 import gt.pagame.app.ui.components.PagameCenteredDialog
 import gt.pagame.app.ui.theme.*
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-
-private fun participantAvatarColors(name: String): Pair<Color, Color> {
-    val normalizedName = name.lowercase()
-    return when {
-        normalizedName == "tú" -> Color(0xFFFDEEE9) to Color(0xFFB83214)
-        normalizedName.startsWith("santi") -> Color(0xFFFEF3C7) to Color(0xFFB45309)
-        normalizedName.startsWith("lu") || normalizedName.startsWith("vale") ->
-            Color(0xFFFFE4E6) to Color(0xFFBE123C)
-        normalizedName.startsWith("pedro") -> Color(0xFFE0F2FE) to Color(0xFF0369A1)
-        normalizedName.startsWith("sofi") -> Color(0xFFEDE9FE) to Color(0xFF7C3AED)
-        normalizedName.startsWith("mario") -> Color(0xFFFFEDD5) to Color(0xFFC2410C)
-        normalizedName.startsWith("diana") -> Color(0xFFFCE7F3) to Color(0xFFBE185D)
-        normalizedName.startsWith("carlos") -> Color(0xFFE2E8F0) to Color(0xFF334155)
-        else -> Color(0xFFD1FAE5) to Color(0xFF047857)
-    }
-}
 
 @Composable
 fun EventDetailScreen(
@@ -63,16 +57,26 @@ fun EventDetailScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    OperationError(uiState.errorMessage, viewModel::dismissError)
+    if (uiState.loading || uiState.event == null) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+            verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            if (uiState.loading) CircularProgressIndicator() else Text("El evento ya no está disponible")
+            TextButton(onClick = onNavigateBack) { Text("Volver") }
+        }
+        return
+    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
         ) {
 
             // Header Row
@@ -110,12 +114,8 @@ fun EventDetailScreen(
                             text = uiState.title,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = uiState.subtitle,
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -136,7 +136,9 @@ fun EventDetailScreen(
                             .padding(horizontal = 10.dp, vertical = 5.dp)
                     ) {
                         Text(
-                            text = "Q${String.format("%,d", uiState.totalAmount.toInt())} total",
+                            text = "${money((uiState.totalAmount * 100).roundToLong(), uiState.currency)} total",
+                            modifier = Modifier.widthIn(max = 130.dp),
+                            maxLines = 2, overflow = TextOverflow.Ellipsis,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -144,6 +146,7 @@ fun EventDetailScreen(
                     }
                     IconButton(
                         onClick = viewModel::requestDeleteEvent,
+                        enabled = !uiState.busy,
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
@@ -155,6 +158,13 @@ fun EventDetailScreen(
                     }
                 }
             }
+
+            Text(
+                text = "${uiState.subtitle}\nCreado por: ${uiState.createdByName}",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 6.dp)
+            )
 
             // Segmented Control (Gastos vs Balance)
             Box(
@@ -232,20 +242,24 @@ fun EventDetailScreen(
                 }
             }
 
-            // Tab Content
-            if (uiState.selectedTab == EventDetailTab.EXPENSES) {
-                ExpensesTabView(
-                    uiState = uiState,
-                    onExpenseClick = { viewModel.openEditExpenseDialog(it) },
-                    onParticipantsClick = { viewModel.openParticipantsSheet() },
-                    modifier = Modifier.weight(1f)
-                )
-            } else {
-                BalanceTabView(
-                    uiState = uiState,
-                    onSettleSuggestion = viewModel::settleBalanceSuggestion,
-                    modifier = Modifier.weight(1f)
-                )
+            PagamePullToRefresh(Modifier.weight(1f).fillMaxWidth()) {
+                // Tab Content
+                if (uiState.selectedTab == EventDetailTab.EXPENSES) {
+                    ExpensesTabView(
+                        uiState = uiState,
+                        onExpenseClick = { viewModel.openEditExpenseDialog(it) },
+                        onParticipantsClick = { viewModel.openParticipantsSheet() },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    BalanceTabView(
+                        uiState = uiState,
+                        onReport = viewModel::reportPayment,
+                        onConfirm = viewModel::confirmPayment,
+                        onReject = viewModel::rejectPayment,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
 
@@ -257,12 +271,23 @@ fun EventDetailScreen(
                 onClick = { viewModel.openAddExpenseDialog() },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                     .padding(end = 20.dp, bottom = 90.dp)
             )
         }
 
+        if (uiState.showRestoreDraftDialog) {
+            AlertDialog(onDismissRequest = viewModel::dismissRestoreDraft,
+                title = { Text("Tienes un gasto sin terminar") },
+                text = { Text("El borrador se conserva en este teléfono durante 30 minutos desde el último cambio. ¿Quieres continuar o empezar uno nuevo?") },
+                confirmButton = { TextButton(onClick = viewModel::restoreExpenseDraft) {
+                    Text("Continuar borrador", fontWeight = FontWeight.Bold) } },
+                dismissButton = { TextButton(onClick = viewModel::startNewExpense) {
+                    Text("Crear uno nuevo", fontWeight = FontWeight.Bold) } }, containerColor = MaterialTheme.colorScheme.surface)
+        }
+
         // Add/Edit Expense Dialog
-        if (uiState.isAddExpenseDialogOpen) {
+        if (uiState.isExpenseSheetOpen) {
             val isEditing = uiState.editingExpenseId != null
             PagameBottomSheet(
                 onDismissRequest = { viewModel.closeAddExpenseDialog() }
@@ -329,7 +354,6 @@ fun EventDetailScreen(
                             placeholder = {
                                 Text(if (isEditing) "¿Qué se pagó?" else "Concepto del gasto")
                             },
-                            trailingIcon = { Text("🍕", fontSize = 18.sp) },
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -345,7 +369,7 @@ fun EventDetailScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (isEditing) {
                             Text(
-                                text = "Monto (Q)",
+                                text = "Monto (${uiState.currency.symbol})",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -354,10 +378,15 @@ fun EventDetailScreen(
                         OutlinedTextField(
                             value = uiState.newExpenseAmount,
                             onValueChange = viewModel::updateNewAmount,
-                            placeholder = { Text(if (isEditing) "0.00" else "Monto (Q)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            isError = uiState.amountInputError != null,
+                            supportingText = if (uiState.amountInputError != null) {
+                                { Text(uiState.amountInputError.orEmpty(), fontSize = 11.sp) }
+                            } else null,
+                            placeholder = { Text("Máximo: 1,000,000.00", fontSize = 14.sp) },
                             prefix = {
                                 Text(
-                                    text = "Q ",
+                                    text = "${uiState.currency.symbol} ",
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -387,7 +416,7 @@ fun EventDetailScreen(
                             letterSpacing = 0.4.sp
                         )
                         Text(
-                            text = "Pagado por: ${uiState.newExpensePayer}",
+                            text = "Pagado por: ${uiState.expensePayerName}",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -400,23 +429,20 @@ fun EventDetailScreen(
                             .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        uiState.payerOptions.forEach { name ->
-                            val isSelected = uiState.newExpensePayer == name
-                            val (avatarBackground, avatarContent) = participantAvatarColors(name)
+                        uiState.payerNames.forEach { name ->
+                            val isSelected = uiState.expensePayerName == name
+                            val (avatarBackground, avatarContent) = avatarColors(name)
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier
                                     .widthIn(min = 48.dp)
+                                    .clip(RoundedCornerShape(16.dp))
                                     .clickable { viewModel.updateNewPayer(name) }
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .size(48.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (isSelected) MaterialTheme.colorScheme.primary
-                                            else avatarBackground
-                                        )
+                                        .background(avatarBackground, CircleShape)
                                         .border(
                                             if (isSelected) 2.dp else 1.dp,
                                             if (isSelected) MaterialTheme.colorScheme.primary
@@ -429,8 +455,7 @@ fun EventDetailScreen(
                                         text = if (name == "Tú") "Tú" else name.split(" ").mapNotNull { it.firstOrNull() }.take(2).joinToString(""),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                                        else avatarContent
+                                        color = avatarContent
                                     )
                                     if (isSelected) {
                                         Box(
@@ -493,14 +518,11 @@ fun EventDetailScreen(
                         )
                     }
 
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = Color.Transparent
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box {
+                        Column(modifier = Modifier.padding(2.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             uiState.allParticipantNames.forEach { name ->
                                 val isChecked = name in uiState.newExpenseIncludedNames
-                                val (avatarBackground, avatarContent) = participantAvatarColors(name)
+                                val (avatarBackground, avatarContent) = avatarColors(name)
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -537,7 +559,7 @@ fun EventDetailScreen(
                                     }
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(
-                                        text = if (name == "Tú") "Tú (Organizador)" else name,
+                                        text = if (name == "Tú" && uiState.isOrganizer) "Tú (Organizador)" else name,
                                         modifier = Modifier.weight(1f),
                                         fontSize = 12.5.sp,
                                         fontWeight = if (name == "Tú") FontWeight.Bold else FontWeight.Medium
@@ -566,8 +588,8 @@ fun EventDetailScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = { viewModel.saveExpense() },
-                        enabled = uiState.newExpenseTitle.isNotBlank() &&
-                            (uiState.newExpenseAmount.toDoubleOrNull() ?: 0.0) > 0.0 &&
+                        enabled = !uiState.busy && uiState.newExpenseTitle.isNotBlank() &&
+                            gt.pagame.app.data.model.amountMinor(uiState.newExpenseAmount) != null && uiState.amountInputError == null &&
                             uiState.newExpenseIncludedNames.isNotEmpty(),
                         shape = RoundedCornerShape(50),
                         contentPadding = PaddingValues(horizontal = 22.dp, vertical = 11.dp)
@@ -620,8 +642,7 @@ fun EventDetailScreen(
                 eventTitle = uiState.title,
                 onDismiss = viewModel::dismissDeleteEventConfirmation,
                 onConfirm = {
-                    viewModel.confirmDeleteEvent()
-                    onNavigateBack()
+                    viewModel.confirmDeleteEvent(onNavigateBack)
                 }
             )
         }
@@ -635,12 +656,14 @@ private fun ExpensesTabView(
     onParticipantsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val bottomInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues()
     LazyColumn(
         modifier = modifier
             .fillMaxWidth()
+            .consumeWindowInsets(bottomInsets)
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp)
+        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp + bottomInsets.calculateBottomPadding())
     ) {
         // Summary Cards: Total Gastado and Participantes
         item {
@@ -673,14 +696,14 @@ private fun ExpensesTabView(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Q${String.format("%,d", uiState.totalAmount.toInt())}",
+                            text = money((uiState.totalAmount * 100).roundToLong(), uiState.currency),
                             style = MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Moneda oficial GT",
+                            text = uiState.currency.displayName,
                             fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f)
                         )
@@ -722,7 +745,7 @@ private fun ExpensesTabView(
                         }
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "Q${String.format("%,d", uiState.averagePerPerson.toInt())} promedio / p",
+                            text = "${money((uiState.averagePerPerson * 100).roundToLong(), uiState.currency)} promedio / p",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
                         )
@@ -748,15 +771,19 @@ private fun ExpensesTabView(
                     letterSpacing = 0.8.sp
                 )
                 Text(
-                    text = "Orden cronológico",
+                    text = "Más recientes primero",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
+        if (uiState.expenses.isEmpty()) item {
+            Text("Todavía no hay gastos. Agrega el primero para calcular el balance.",
+                modifier = Modifier.padding(vertical = 24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         items(uiState.expenses, key = { it.id }) { exp ->
-            ExpenseCard(expense = exp, onClick = { onExpenseClick(exp) })
+            ExpenseCard(expense = exp, currency = uiState.currency, onClick = { onExpenseClick(exp) })
         }
     }
 }
@@ -773,23 +800,25 @@ private fun ParticipantsEditorSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val query = uiState.participantSearchQuery.trim()
-    val matchesSearch: (FriendItem) -> Boolean = { friend ->
-        query.isBlank() ||
-            friend.name.contains(query, ignoreCase = true) ||
-            friend.codeOrStatus.contains(query, ignoreCase = true)
+    val (currentParticipants, otherFriends) = remember(
+        uiState.participantCandidates, uiState.draftParticipantIds, query
+    ) {
+        uiState.participantCandidates
+            .filter { friend ->
+                query.isBlank() ||
+                    friend.name.contains(query, ignoreCase = true) ||
+                    friend.codeOrStatus.contains(query, ignoreCase = true)
+            }
+            .sortedBy { it.name }
+            .partition { it.id in uiState.draftParticipantIds }
     }
-    val currentParticipants = uiState.allFriends
-        .filter { it.id in uiState.draftParticipantIds && matchesSearch(it) }
-        .sortedBy { it.name }
-    val otherFriends = uiState.allFriends
-        .filter { it.id !in uiState.draftParticipantIds && matchesSearch(it) }
-        .sortedBy { it.name }
     val showOrganizer = query.isBlank() ||
         "Tú (Organizador)".contains(query, ignoreCase = true)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        contentWindowInsets = { WindowInsets.safeDrawing },
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
         containerColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
             Color.White
@@ -811,7 +840,6 @@ private fun ParticipantsEditorSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 720.dp)
-                .navigationBarsPadding()
         ) {
             Row(
                 modifier = Modifier
@@ -878,7 +906,7 @@ private fun ParticipantsEditorSheet(
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f),
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f),
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = Color.Transparent
+                    unfocusedBorderColor = MaterialTheme.colorScheme.primary
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -920,6 +948,7 @@ private fun ParticipantsEditorSheet(
                     val wasJustAdded = friend.id !in uiState.originalParticipantIds
                     ParticipantEditorRow(
                         name = friend.name,
+                            avatarKey = friend.id,
                         initials = friend.name.split(" ")
                             .mapNotNull { it.firstOrNull() }
                             .take(2)
@@ -945,7 +974,7 @@ private fun ParticipantsEditorSheet(
                         )
                         ParticipantSectionHeader(
                             title = "TUS OTROS AMIGOS",
-                            count = uiState.allFriends.count { it.id !in uiState.draftParticipantIds },
+                            count = uiState.participantCandidates.count { it.id !in uiState.draftParticipantIds },
                             accent = false
                         )
                     }
@@ -953,6 +982,7 @@ private fun ParticipantsEditorSheet(
                         val wasRemoved = friend.id in uiState.originalParticipantIds
                         ParticipantEditorRow(
                             name = friend.name,
+                            avatarKey = friend.id,
                             initials = friend.name.split(" ")
                                 .mapNotNull { it.firstOrNull() }
                                 .take(2)
@@ -1082,19 +1112,20 @@ private fun ParticipantSectionHeader(
 @Composable
 private fun ParticipantEditorRow(
     name: String,
+    avatarKey: String = name,
     initials: String,
     supportingText: String,
     isLocked: Boolean,
     isInEvent: Boolean,
     onAction: () -> Unit
 ) {
-    val (avatarBackground, avatarContent) = participantAvatarColors(name)
+    val (avatarBackground, avatarContent) = avatarColors(avatarKey)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onAction)
-            .padding(horizontal = 4.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -1133,7 +1164,7 @@ private fun ParticipantEditorRow(
         IconButton(
             onClick = onAction,
             modifier = Modifier
-                .size(36.dp)
+                .size(48.dp)
                 .clip(CircleShape)
                 .background(
                     if (!isInEvent) MaterialTheme.colorScheme.primaryContainer
@@ -1442,6 +1473,7 @@ private fun ParticipantChangeSummary(
 @Composable
 fun ExpenseCard(
     expense: ExpenseItem,
+    currency: Currency,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1471,13 +1503,14 @@ fun ExpenseCard(
                         .size(44.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(
-                            if (expense.iconType == "pizza") Color(0xFFFFEDE6) else Color(0xFFFEF3C7)
+                            MaterialTheme.colorScheme.primaryContainer
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (expense.iconType == "pizza") "🍕" else "🍻",
-                        fontSize = 20.sp
+                        text = titleInitial(expense.title),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontWeight = FontWeight.Bold, fontSize = 20.sp
                     )
                 }
 
@@ -1492,10 +1525,10 @@ fun ExpenseCard(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Pagó ${expense.paidByName} • ${expense.timeFormatted}",
+                        text = "Pagó ${expense.paidByName}\nAgregado por: ${expense.createdByName}\n${expense.createdAtLabel.substringBefore(" • ")}",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -1504,22 +1537,18 @@ fun ExpenseCard(
             Spacer(modifier = Modifier.width(8.dp))
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "Q${String.format("%,d", expense.amount.toInt())}",
+                    text = money((expense.amount * 100).roundToLong(), currency),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1
                 )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "${expense.participantCount} personas",
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
             }
             Spacer(modifier = Modifier.width(14.dp))
             IconButton(
                 onClick = onClick,
+                enabled = expense.canEdit,
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
@@ -1536,19 +1565,29 @@ fun ExpenseCard(
 @Composable
 private fun BalanceTabView(
     uiState: EventDetailUiState,
-    onSettleSuggestion: (String) -> Unit,
+    onReport: (Settlement) -> Unit,
+    onConfirm: (String) -> Unit,
+    onReject: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isLightTheme = MaterialTheme.colorScheme.background.luminance() > 0.5f
-    val settledIds = uiState.settledBalanceSuggestionIds
-    val pendingCount = 3 - settledIds.size
+    val event = uiState.event ?: return
+    val people = LocalPeople.current
+    val uid = uiState.currentUid
+    fun name(id: String): String = if (id == uid) "Tú" else people[id]?.name ?: "Usuario"
+    val suggestions = event.suggestions()
+    val pending = event.payments.filter { it.status == "pending" }
+    val balance = event.balances()[uid] ?: 0L
+    val pendingCount = suggestions.count { suggestion -> pending.none { it.fromId == suggestion.fromId && it.toId == suggestion.toId } } + pending.size
+    val bottomInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues()
 
     LazyColumn(
         modifier = modifier
             .fillMaxWidth()
+            .consumeWindowInsets(bottomInsets)
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp)
+        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp + bottomInsets.calculateBottomPadding())
     ) {
         item {
             Surface(
@@ -1563,7 +1602,7 @@ private fun BalanceTabView(
                 tonalElevation = 0.dp,
                 shadowElevation = 1.dp
             ) {
-                Column(modifier = Modifier.padding(20.dp))  {
+                Column(modifier = Modifier.padding(20.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1571,7 +1610,7 @@ private fun BalanceTabView(
                     ) {
                         Column {
                             Text(
-                                text = "DEBES EN TOTAL",
+                                text = when { balance < 0 -> "DEBES EN TOTAL"; balance > 0 -> "TE DEBEN EN TOTAL"; else -> "ESTÁS AL DÍA" },
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 letterSpacing = 0.4.sp,
@@ -1579,7 +1618,7 @@ private fun BalanceTabView(
                             )
                             Spacer(modifier = Modifier.height(5.dp))
                             Text(
-                                text = "Q2,066.67",
+                                text = money(kotlin.math.abs(balance), event.currency),
                                 fontSize = 28.sp,
                                 lineHeight = 32.sp,
                                 fontWeight = FontWeight.ExtraBold,
@@ -1605,7 +1644,7 @@ private fun BalanceTabView(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Saldando estas sugerencias quedas al día con el grupo.",
+                        text = "Los pagos se registran cuando quien recibe confirma.",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1644,46 +1683,30 @@ private fun BalanceTabView(
             }
         }
 
-        item {
-            BalanceSuggestionCard(
-                fromName = "Tú",
-                fromInitials = "Tú",
-                toName = "Santi Morales",
-                amount = "Q1,250.00",
-                state = if ("you_to_santi" in settledIds) {
-                    BalanceSuggestionState.SETTLED
-                } else {
-                    BalanceSuggestionState.PAYMENT_REQUIRED
-                },
-                onPrimaryAction = { onSettleSuggestion("you_to_santi") }
-            )
+        if (suggestions.isEmpty() && pending.isEmpty()) item {
+            Text(if (event.expenses.isEmpty()) "Agrega gastos para calcular el balance." else "No hay pagos pendientes.",
+                modifier = Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-
-        item {
+        items(suggestions.filter { suggestion -> pending.none { it.fromId == suggestion.fromId && it.toId == suggestion.toId } },
+            key = { "suggestion_${it.fromId}_${it.toId}" }) { suggestion ->
             BalanceSuggestionCard(
-                fromName = "Vale Castillo",
-                fromInitials = "VC",
-                toName = "Tú",
-                amount = "Q816.67",
-                message = "Vale Castillo dice que ya te pagó",
-                state = if ("vale_to_you" in settledIds) {
-                    BalanceSuggestionState.SETTLED
-                } else {
-                    BalanceSuggestionState.RECEIPT_CONFIRMATION
-                },
-                onPrimaryAction = { onSettleSuggestion("vale_to_you") }
-            )
+                fromName = name(suggestion.fromId), fromInitials = people[suggestion.fromId]?.initial ?: "?",
+                fromKey = suggestion.fromId, toName = name(suggestion.toId), amount = money(suggestion.amountMinor, event.currency),
+                state = if (suggestion.fromId == uid) BalanceSuggestionState.PAYMENT_REQUIRED else BalanceSuggestionState.WAITING,
+                onPrimaryAction = { onReport(suggestion) }, enabled = !uiState.busy && pending.isEmpty(),
+                message = if (suggestion.fromId == uid) null else "Pendiente de pago")
         }
-
-        item {
+        items(event.payments.sortedBy { it.status == "confirmed" }, key = { "payment_${it.id}" }) { payment ->
             BalanceSuggestionCard(
-                fromName = "Pedro Méndez",
-                fromInitials = "PM",
-                toName = "Santi Morales",
-                amount = "Q750.00",
-                state = BalanceSuggestionState.SETTLED,
-                onPrimaryAction = {}
-            )
+                fromName = name(payment.fromId), fromInitials = people[payment.fromId]?.initial ?: "?",
+                fromKey = payment.fromId, toName = name(payment.toId), amount = money(payment.amountMinor, event.currency),
+                state = when {
+                    payment.status == "confirmed" -> BalanceSuggestionState.SETTLED
+                    payment.toId == uid -> BalanceSuggestionState.RECEIPT_CONFIRMATION
+                    else -> BalanceSuggestionState.WAITING
+                },
+                message = if (payment.status == "pending") "${name(payment.fromId)} indicó que pagó. Confirma el dinero recibido aunque los gastos hayan cambiado." else null,
+                enabled = !uiState.busy, onPrimaryAction = { onConfirm(payment.id) }, onReject = { onReject(payment.id) })
         }
     }
 }
@@ -1691,6 +1714,7 @@ private fun BalanceTabView(
 private enum class BalanceSuggestionState {
     PAYMENT_REQUIRED,
     RECEIPT_CONFIRMATION,
+    WAITING,
     SETTLED
 }
 
@@ -1702,28 +1726,32 @@ private fun BalanceSuggestionCard(
     amount: String,
     state: BalanceSuggestionState,
     onPrimaryAction: () -> Unit,
+    fromKey: String = fromName,
+    onReject: () -> Unit = {},
+    enabled: Boolean = true,
     message: String? = null,
     modifier: Modifier = Modifier
 ) {
     val isSettled = state == BalanceSuggestionState.SETTLED
-    val avatarColors = participantAvatarColors(fromName)
+    val avatarColors = avatarColors(fromKey)
 
-    Card(
+    // Use the current elevation directly when the action button leaves composition.
+    // A retained CardElevation can leave a stale shadow on a translucent settled card.
+    Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSettled) {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-        ),
+        color = if (isSettled) {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f)
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        contentColor = MaterialTheme.colorScheme.onSurface,
         border = CardDefaults.outlinedCardBorder(enabled = true).copy(
             brush = androidx.compose.ui.graphics.SolidColor(
                 MaterialTheme.colorScheme.outline.copy(alpha = if (isSettled) 0.45f else 0.75f)
             )
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isSettled) 0.dp else 2.dp)
+        shadowElevation = if (isSettled) 0.dp else 2.dp
     ) {
         Column(
             modifier = Modifier
@@ -1807,6 +1835,7 @@ private fun BalanceSuggestionCard(
                 BalanceSuggestionState.PAYMENT_REQUIRED -> {
                     Button(
                         onClick = onPrimaryAction,
+                        enabled = enabled,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(42.dp),
@@ -1824,6 +1853,7 @@ private fun BalanceSuggestionCard(
                     ) {
                         Button(
                             onClick = onPrimaryAction,
+                        enabled = enabled,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(42.dp),
@@ -1843,7 +1873,8 @@ private fun BalanceSuggestionCard(
                             Text("Sí, lo recibí", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
                         }
                         OutlinedButton(
-                            onClick = {},
+                            onClick = onReject,
+                            enabled = enabled,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(42.dp),
@@ -1855,6 +1886,10 @@ private fun BalanceSuggestionCard(
                     }
                 }
 
+                BalanceSuggestionState.WAITING -> {
+                    Text("Pendiente de confirmación o pago", fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 BalanceSuggestionState.SETTLED -> {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -1876,16 +1911,5 @@ private fun BalanceSuggestionCard(
                 }
             }
         }
-    }
-}
-
-@Preview(showBackground = true, widthDp = 390, heightDp = 844)
-@Composable
-fun EventDetailScreenPreview() {
-    PagameTheme {
-        EventDetailScreen(
-            viewModel = EventDetailViewModel(),
-            onNavigateBack = {}
-        )
     }
 }

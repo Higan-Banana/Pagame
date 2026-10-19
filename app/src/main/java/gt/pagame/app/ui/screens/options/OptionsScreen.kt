@@ -1,5 +1,8 @@
 package gt.pagame.app.ui.screens.options
 
+import android.content.ClipData
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,9 +14,16 @@ import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyRow
+import gt.pagame.app.data.model.Currency
+import gt.pagame.app.ui.components.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,17 +32,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import gt.pagame.app.data.model.AppThemeMode
 import androidx.compose.ui.graphics.SolidColor
 import gt.pagame.app.ui.components.AnimatedPagameFloatingNotice
 import gt.pagame.app.ui.theme.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun OptionsScreen(
@@ -41,7 +51,18 @@ fun OptionsScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val clipboardManager = LocalClipboardManager.current
+    var currencyExpanded by remember { mutableStateOf(false) }
+    var themeExpanded by remember { mutableStateOf(false) }
+    var colorExpanded by remember { mutableStateOf(false) }
+    var passwordExpanded by remember { mutableStateOf(false) }
+    val connected by rememberInternetAvailable()
+    val context = LocalContext.current
+    OperationError(uiState.errorMessage, viewModel::dismissError)
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val cardShape = RoundedCornerShape(22.dp)
+    val cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    val cardBorder = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -51,7 +72,8 @@ fun OptionsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 20.dp)
         ) {
 
             // Header Row
@@ -77,21 +99,20 @@ fun OptionsScreen(
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "v2.4",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+
             }
 
+            if (!connected) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.WifiOff, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                    Text("Sin conexión · Los datos pueden estar desactualizados",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
             Spacer(modifier = Modifier.height(14.dp))
 
             // 1. Profile Card
@@ -99,11 +120,9 @@ fun OptionsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = CardDefaults.outlinedCardBorder(enabled = true).copy(
-                    brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.outline)
-                )
+                shape = cardShape,
+                colors = cardColors,
+                border = cardBorder
             ) {
                 Row(
                     modifier = Modifier
@@ -112,74 +131,43 @@ fun OptionsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Avatar M with gradient
-                    Box(
-                        modifier = Modifier
-                            .size(60.dp)
-                            .shadow(
-                                elevation = 6.dp,
-                                shape = CircleShape,
-                                ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                            )
-                            .clip(CircleShape)
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-                                        listOf(Color(0xFF2A9D8F), Color(0xFF1F6F68))
-                                    } else {
-                                        listOf(Color(0xFFFB923C), MaterialTheme.colorScheme.primary)
-                                    }
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = uiState.user.avatarInitial,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
+                    // Persistent profile color
+                    Box(Modifier.clickable { colorExpanded = true }) { ProfileAvatar(uiState.user.id, 58.dp) }
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = uiState.user.name,
-                            style = MaterialTheme.typography.titleMedium,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = uiState.user.email,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        // Verified Pill
                         Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(Color(0xFFECFDF3))
-                                .border(1.dp, Color(0xFFD8E6DB), RoundedCornerShape(50))
-                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(5.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF10B981))
-                            )
-                            Text(
-                                text = "Cuenta verificada",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = StatusSuccessText
-                            )
+                            TextButton(onClick = viewModel::openNameDialog, enabled = !uiState.busy,
+                                modifier = Modifier.weight(1f), shape = RoundedCornerShape(50),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)) {
+                                Text("Editar nombre", fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            }
+                            TextButton(onClick = { colorExpanded = true }, enabled = !uiState.busy,
+                                modifier = Modifier.weight(1f), shape = RoundedCornerShape(50),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)) {
+                                Text("Cambiar color", fontWeight = FontWeight.Bold, fontSize = 12.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            }
                         }
+
                     }
                 }
             }
@@ -191,13 +179,9 @@ fun OptionsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = CardDefaults.outlinedCardBorder(enabled = true).copy(
-                    brush = androidx.compose.ui.graphics.SolidColor(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-                    )
-                )
+                shape = cardShape,
+                colors = cardColors,
+                border = cardBorder
             ) {
                 Row(
                     modifier = Modifier
@@ -228,7 +212,7 @@ fun OptionsScreen(
                         Column {
                             Text(
                                 text = "TU CÓDIGO DE AMIGO",
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 letterSpacing = 0.5.sp
@@ -246,8 +230,12 @@ fun OptionsScreen(
                     // Copy button
                     OutlinedButton(
                         onClick = {
-                            clipboardManager.setText(AnnotatedString(uiState.user.friendCode))
-                            viewModel.copyFriendCode()
+                            scope.launch {
+                                clipboard.setClipEntry(
+                                    ClipEntry(ClipData.newPlainText("Código de amigo", uiState.user.friendCode))
+                                )
+                                viewModel.copyFriendCode()
+                            }
                         },
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
@@ -272,6 +260,21 @@ fun OptionsScreen(
                         Text("Copiar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
+                TextButton(
+                    enabled = uiState.user.friendCode.isNotBlank(),
+                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 6.dp),
+                    onClick = {
+                        val share = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, "Agrégame en Pagame con mi código: ${uiState.user.friendCode}")
+                        }
+                        context.startActivity(Intent.createChooser(share, "Compartir código de amigo"))
+                    }
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Compartir código", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -293,47 +296,65 @@ fun OptionsScreen(
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = CardDefaults.outlinedCardBorder(enabled = true).copy(
-                        brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.outline)
-                    )
+                    shape = cardShape,
+                    colors = cardColors,
+                    border = cardBorder
                 ) {
                     Column {
-                        // Moneda
                         PreferenceRow(
                             icon = Icons.Default.Payments,
-                            iconBg = Color(0xFFE8F7EE),
-                            iconColor = Color(0xFF137A50),
+                            iconBg = Color(0xFFE8F7EE), iconColor = Color(0xFF137A50),
                             title = "Moneda",
                             trailing = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                Box {
+                                    Row(
+                                        modifier = Modifier.clip(RoundedCornerShape(8.dp))
+                                            .clickable(enabled = !uiState.busy) { currencyExpanded = true }
+                                            .padding(vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(
-                                            text = uiState.currency.displayName,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                        ) {
+                                            Text(uiState.currency.displayName, fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface)
+                                        }
+                                        Spacer(Modifier.width(4.dp))
+                                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Elegir moneda",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp))
                                     }
-                                    Icon(
-                                        imageVector = Icons.Default.ChevronRight,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    MaterialTheme(shapes = MaterialTheme.shapes.copy(extraSmall = RoundedCornerShape(16.dp))) {
+                                        DropdownMenu(
+                                            expanded = currencyExpanded,
+                                            onDismissRequest = { currencyExpanded = false },
+                                            containerColor = MaterialTheme.colorScheme.surface,
+                                            tonalElevation = 0.dp
+                                        ) {
+                                            Currency.entries.forEach { currency ->
+                                                DropdownMenuItem(
+                                                    text = { Text(currency.displayName, fontSize = 12.sp, fontWeight = FontWeight.Bold) },
+                                                    enabled = !uiState.busy,
+                                                    trailingIcon = {
+                                                        if (currency == uiState.currency) Icon(Icons.Default.Check,
+                                                            contentDescription = "Seleccionada",
+                                                            tint = MaterialTheme.colorScheme.primary)
+                                                    },
+                                                    onClick = { currencyExpanded = false; viewModel.selectCurrency(currency) }
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
-                            },
-                            onClick = { viewModel.cycleCurrency() }
+                            }, onClick = { if (!uiState.busy) currencyExpanded = true }
                         )
+                        Text("Se aplica a eventos nuevos; no convierte importes existentes.",
+                            fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
@@ -344,94 +365,76 @@ fun OptionsScreen(
                             iconColor = Color(0xFFD97706),
                             title = "Tema",
                             trailing = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                Box {
+                                    Row(
+                                        modifier = Modifier.clip(RoundedCornerShape(8.dp))
+                                            .clickable(enabled = !uiState.busy) { themeExpanded = true }
+                                            .padding(vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        Text(
-                                            text = when (uiState.theme) {
-                                                AppThemeMode.LIGHT -> "Claro"
-                                                AppThemeMode.DARK -> "Oscuro"
-                                                AppThemeMode.SYSTEM -> "Automático"
-                                            },
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
+                                        Box(Modifier.clip(RoundedCornerShape(6.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)) {
+                                            Text(themeLabel(uiState.theme), fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface)
+                                        }
+                                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Elegir tema",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp))
                                     }
-                                    Icon(
-                                        imageVector = Icons.Default.ChevronRight,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    MaterialTheme(shapes = MaterialTheme.shapes.copy(extraSmall = RoundedCornerShape(16.dp))) {
+                                        DropdownMenu(
+                                            expanded = themeExpanded,
+                                            onDismissRequest = { themeExpanded = false },
+                                            containerColor = MaterialTheme.colorScheme.surface,
+                                            tonalElevation = 0.dp
+                                        ) {
+                                            AppThemeMode.entries.forEach { theme ->
+                                                DropdownMenuItem(
+                                                    text = { Text(themeLabel(theme), fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Bold) },
+                                                    enabled = !uiState.busy,
+                                                    trailingIcon = {
+                                                        if (theme == uiState.theme) Icon(Icons.Default.Check,
+                                                            contentDescription = "Seleccionado",
+                                                            tint = MaterialTheme.colorScheme.primary)
+                                                    },
+                                                    onClick = { themeExpanded = false; viewModel.selectTheme(theme) }
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             },
-                            onClick = { viewModel.cycleTheme() }
+                            onClick = { if (!uiState.busy) themeExpanded = true }
                         )
 
-                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
-                        // Notificaciones
-                        PreferenceRow(
-                            icon = Icons.Default.Notifications,
-                            iconBg = Color(0xFFE0E7FF),
-                            iconColor = Color(0xFF4F46E5),
-                            title = "Notificaciones",
-                            trailing = {
-                                Switch(
-                                    checked = uiState.notificationsEnabled,
-                                    onCheckedChange = { viewModel.toggleNotifications(it) },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = MaterialTheme.colorScheme.primary,
-                                        uncheckedThumbColor = Color.White,
-                                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                                    )
-                                )
-                            },
-                            onClick = { viewModel.toggleNotifications(!uiState.notificationsEnabled) }
-                        )
-
-                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-
-                        // Ayuda y soporte
-                        PreferenceRow(
-                            icon = Icons.AutoMirrored.Filled.Help,
-                            iconBg = Color(0xFFF3E8FF),
-                            iconColor = Color(0xFF9333EA),
-                            title = "Ayuda y soporte",
-                            trailing = {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(
-                                        text = "FAQ y chat",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.ChevronRight,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            },
-                            onClick = { }
-                        )
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                shape = cardShape,
+                colors = cardColors,
+                border = cardBorder
+            ) {
+                PreferenceRow(
+                    icon = Icons.Default.Lock,
+                    iconBg = MaterialTheme.colorScheme.primaryContainer,
+                    iconColor = MaterialTheme.colorScheme.primary,
+                    title = "Cambiar contraseña",
+                    trailing = { Icon(Icons.Default.ChevronRight, contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    onClick = { if (!uiState.busy) passwordExpanded = true }
+                )
+            }
+            Spacer(Modifier.height(16.dp))
 
             // 4. Cerrar Sesión Row
             Card(
@@ -439,15 +442,9 @@ fun OptionsScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
                     .clickable { viewModel.openLogoutDialog() },
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                ),
-                border = CardDefaults.outlinedCardBorder(enabled = true).copy(
-                    brush = androidx.compose.ui.graphics.SolidColor(
-                        MaterialTheme.colorScheme.error.copy(alpha = 0.35f)
-                    )
-                )
+                shape = cardShape,
+                colors = cardColors,
+                border = cardBorder
             ) {
                 Row(
                     modifier = Modifier
@@ -480,13 +477,13 @@ fun OptionsScreen(
                                 text = "Cerrar sesión",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onErrorContainer
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "Podrás volver a ingresar en cualquier momento",
                                 fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.75f)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -509,6 +506,7 @@ fun OptionsScreen(
             ) {
                 Text(
                     text = "Eliminar cuenta",
+                    fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textDecoration = TextDecoration.Underline,
@@ -517,12 +515,76 @@ fun OptionsScreen(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                Text(
-                    text = "Pagame para Android • Material 3",
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
             }
+        }
+
+        if (uiState.showNameDialog) {
+            AlertDialog(
+                onDismissRequest = viewModel::closeNameDialog,
+                title = { Text("Editar nombre") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = uiState.editedName, onValueChange = viewModel::editName,
+                            label = { Text("Nombre") }, singleLine = true,
+                            enabled = !uiState.busy, shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        if (!connected) Text("Necesitás conexión para guardar el nombre.",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = viewModel::saveName,
+                        enabled = connected && !uiState.busy && uiState.editedName.isNotBlank()) {
+                        Text(if (uiState.busy) "Guardando…" else "Guardar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = { TextButton(onClick = viewModel::closeNameDialog,
+                    enabled = !uiState.busy) { Text("Cancelar", fontSize = 12.sp, fontWeight = FontWeight.Bold) } },
+                containerColor = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(20.dp)
+            )
+        }
+        if (passwordExpanded) {
+            AlertDialog(
+                onDismissRequest = { if (!uiState.busy) passwordExpanded = false },
+                title = { Text("Cambiar contraseña") },
+                text = { Text(if (connected)
+                    "Te enviaremos un enlace a ${uiState.user.email} para elegir una nueva contraseña."
+                    else "Necesitás conexión para solicitar el enlace de cambio de contraseña.") },
+                confirmButton = {
+                    Button(enabled = connected && !uiState.busy, onClick = {
+                        viewModel.sendPasswordLink { passwordExpanded = false }
+                    }) { Text(if (uiState.busy) "Enviando…" else "Enviar enlace", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+                },
+                dismissButton = { TextButton(enabled = !uiState.busy, onClick = { passwordExpanded = false }) { Text("Cancelar", fontSize = 12.sp, fontWeight = FontWeight.Bold) } },
+                containerColor = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(20.dp)
+            )
+        }
+
+        if (colorExpanded) {
+            AlertDialog(onDismissRequest = { colorExpanded = false },
+                title = { Text("Color de tu perfil") },
+                text = {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(AvatarPalette.size) { index ->
+                            val colors = AvatarPalette[index]
+                            Surface(
+                                modifier = Modifier.size(48.dp).clip(CircleShape)
+                                    .clickable(enabled = !uiState.busy) { viewModel.selectColor(index); colorExpanded = false },
+                                shape = CircleShape, color = colors.first,
+                                border = if (index == uiState.user.colorIndex) androidx.compose.foundation.BorderStroke(2.dp, colors.second) else null
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(uiState.user.avatarInitial, color = colors.second, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }, confirmButton = { TextButton(onClick = { colorExpanded = false }) { Text("Cerrar", fontSize = 12.sp, fontWeight = FontWeight.Bold) } })
         }
 
         // Logout Confirmation Dialog
@@ -533,7 +595,7 @@ fun OptionsScreen(
                 text = {
                     Text(
                         "Puedes volver a entrar con tu correo y contraseña cuando quieras. Tus cuentas y grupos guardados se mantendrán sincronizados.",
-                        fontSize = 13.sp,
+                        fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
@@ -544,12 +606,12 @@ fun OptionsScreen(
                             containerColor = MaterialTheme.colorScheme.error
                         )
                     ) {
-                        Text("Cerrar sesión", fontWeight = FontWeight.Bold)
+                        Text("Cerrar sesión", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.closeLogoutDialog() }) {
-                        Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Cancelar", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
                 shape = RoundedCornerShape(20.dp),
@@ -564,22 +626,23 @@ fun OptionsScreen(
                 title = { Text("Eliminar tu cuenta", fontWeight = FontWeight.Bold, color = Color(0xFFDC2626)) },
                 text = {
                     Text(
-                        "Se eliminarán tus eventos, gastos y amigos. Esta acción no se puede deshacer.",
-                        fontSize = 13.sp,
+                        "Se eliminarán tu cuenta, perfil y lista de amigos. Primero debes dejar de pertenecer a todos los eventos. Esta acción no se puede deshacer.",
+                        fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 confirmButton = {
                     Button(
                         onClick = { viewModel.confirmDelete(onLogoutSuccess) },
+                        enabled = !uiState.busy,
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
                     ) {
-                        Text("Eliminar", fontWeight = FontWeight.Bold)
+                        Text("Eliminar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.closeDeleteDialog() }) {
-                        Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Cancelar", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
                 shape = RoundedCornerShape(20.dp),
@@ -589,7 +652,7 @@ fun OptionsScreen(
 
         // Floating Snackbar notice
         AnimatedPagameFloatingNotice(
-            message = uiState.snackbarMessage,
+            message = uiState.noticeMessage,
             icon = Icons.Default.CheckCircle,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -641,7 +704,7 @@ private fun PreferenceRow(
             Text(
                 text = title,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
@@ -650,13 +713,8 @@ private fun PreferenceRow(
     }
 }
 
-@Preview(showBackground = true, widthDp = 390, heightDp = 844)
-@Composable
-fun OptionsScreenPreview() {
-    PagameTheme {
-        OptionsScreen(
-            viewModel = OptionsViewModel(),
-            onLogoutSuccess = {}
-        )
-    }
+private fun themeLabel(theme: AppThemeMode): String = when (theme) {
+    AppThemeMode.LIGHT -> "Claro"
+    AppThemeMode.DARK -> "Oscuro"
+    AppThemeMode.SYSTEM -> "Automático"
 }

@@ -1,369 +1,249 @@
 package gt.pagame.app.ui.screens.eventdetail
 
-import androidx.lifecycle.ViewModel
-import gt.pagame.app.data.model.ExpenseItem
-import gt.pagame.app.data.model.FriendItem
-import gt.pagame.app.data.model.ParticipantBalance
-import gt.pagame.app.data.model.SuggestedPayment
-import gt.pagame.app.data.repository.PagameRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import androidx.lifecycle.SavedStateHandle
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import gt.pagame.app.data.model.*
+import gt.pagame.app.data.repository.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+import java.math.BigDecimal
+import java.util.UUID
 
-enum class EventDetailTab {
-    EXPENSES,
-    BALANCE
-}
-
+enum class EventDetailTab { EXPENSES, BALANCE }
 data class EventDetailUiState(
     val selectedTab: EventDetailTab = EventDetailTab.EXPENSES,
-    val title: String = "Pizza & Birra",
-    val subtitle: String = "6 participantes • Hoy, 21:30",
-    val totalAmount: Double = 12400.0,
-    val participantCount: Int = 6,
-    val averagePerPerson: Double = 2066.0,
-    val expenses: List<ExpenseItem> = emptyList(),
-    val participants: List<ParticipantBalance> = emptyList(),
-    val suggestedPayment: SuggestedPayment? = null,
-    val isAddExpenseDialogOpen: Boolean = false,
-    val editingExpenseId: String? = null,
-    val newExpenseTitle: String = "",
-    val newExpenseAmount: String = "",
-    val newExpensePayer: String = "Tú",
-    val newExpenseIncludedNames: List<String> = emptyList(),
-    val isSettledNoticeShown: Boolean = false,
-    val allFriends: List<FriendItem> = emptyList(),
-    val originalParticipantIds: Set<String> = emptySet(),
-    val draftParticipantIds: Set<String> = emptySet(),
-    val participantSearchQuery: String = "",
-    val isParticipantsSheetOpen: Boolean = false,
-    val isParticipantChangesConfirmationOpen: Boolean = false,
-    val participantRemovalBlockedMessage: String? = null,
-    val participantExpenseCounts: Map<String, Int> = emptyMap(),
-    val isDeleteEventConfirmationOpen: Boolean = false,
-    val deleteEventBlockedMessage: String? = null,
-    val settledBalanceSuggestionIds: Set<String> = emptySet()
+    val title: String = "", val subtitle: String = "", val totalAmount: Double = 0.0,
+    val createdByName: String = "",
+    val participantCount: Int = 0, val averagePerPerson: Double = 0.0,
+    val expenses: List<ExpenseItem> = emptyList(), val participants: List<ParticipantBalance> = emptyList(),
+    val showRestoreDraftDialog: Boolean = false, val amountInputError: String? = null,
+    val isExpenseSheetOpen: Boolean = false, val editingExpenseId: String? = null,
+    val newExpenseTitle: String = "", val newExpenseAmount: String = "", val expensePayerName: String = "Tú",
+    val newExpenseIncludedNames: List<String> = emptyList(), val participantCandidates: List<FriendItem> = emptyList(),
+    val originalParticipantIds: Set<String> = emptySet(), val draftParticipantIds: Set<String> = emptySet(),
+    val participantSearchQuery: String = "", val isParticipantsSheetOpen: Boolean = false,
+    val isParticipantChangesConfirmationOpen: Boolean = false, val participantRemovalBlockedMessage: String? = null,
+    val participantExpenseCounts: Map<String, Int> = emptyMap(), val isDeleteEventConfirmationOpen: Boolean = false,
+    val deleteEventBlockedMessage: String? = null, val busy: Boolean = false, val errorMessage: String? = null,
+    val event: OnlineEvent? = null, val currency: Currency = Currency.GTQ, val currentUid: String = "",
+    val isOrganizer: Boolean = false, val loading: Boolean = true
 ) {
-    val payerOptions: List<String> get() = listOf("Tú") + participants.map { it.name }
-    val allParticipantNames: List<String> get() = payerOptions
-    val addedParticipantNames: List<String>
-        get() = allFriends
-            .filter { it.id in (draftParticipantIds - originalParticipantIds) }
-            .map { it.name }
-    val removedParticipantNames: List<String>
-        get() = allFriends
-            .filter { it.id in (originalParticipantIds - draftParticipantIds) }
-            .map { it.name }
-    val hasParticipantChanges: Boolean
-        get() = originalParticipantIds != draftParticipantIds
+    val payerNames get() = listOf("Tú") + participants.map { it.name }
+    val allParticipantNames get() = payerNames
+    val addedParticipantNames get(): List<String> {
+        val ids = draftParticipantIds - originalParticipantIds
+        return participantCandidates.filter { it.id in ids }.map { it.name }
+    }
+    val removedParticipantNames get(): List<String> {
+        val ids = originalParticipantIds - draftParticipantIds
+        return participantCandidates.filter { it.id in ids }.map { it.name }
+    }
+    val hasParticipantChanges get() = originalParticipantIds != draftParticipantIds
 }
-
-class EventDetailViewModel(
-    private val repository: PagameRepository = PagameRepository.instance
-) : ViewModel() {
-
-    private val initialParticipantIds = repository.pizzaParticipantIds.value
-    private val initialParticipantCount = initialParticipantIds.size + 1
-
-    private val _uiState = MutableStateFlow(
-        EventDetailUiState(
-            subtitle = "$initialParticipantCount participantes • Hoy, 21:30",
-            participantCount = initialParticipantCount,
-            averagePerPerson = 12400.0 / initialParticipantCount,
-            expenses = repository.pizzaExpenses.value,
-            participants = repository.pizzaParticipants,
-            suggestedPayment = repository.pizzaSuggestedPayment,
-            allFriends = repository.friends.value,
-            originalParticipantIds = initialParticipantIds,
-            draftParticipantIds = initialParticipantIds
-        )
-    )
-    val uiState: StateFlow<EventDetailUiState> = _uiState.asStateFlow()
-
-    fun selectTab(tab: EventDetailTab) {
-        _uiState.update { it.copy(selectedTab = tab) }
+class EventDetailViewModel(application: Application, savedStateHandle: SavedStateHandle) : AndroidViewModel(application) {
+    private val repository = PagameRepository.instance
+    private val draftStore = ExpenseDraftStore(application)
+    private var expenseDraftId = UUID.randomUUID().toString()
+    private val eventId: String = checkNotNull(savedStateHandle["eventId"])
+    private val _uiState = MutableStateFlow(EventDetailUiState())
+    val uiState = _uiState.asStateFlow()
+    init {
+        viewModelScope.launch {
+            combine(repository.onlineEvents, repository.people, repository.friends, repository.loading) { events, people, friends, loading ->
+                val event = events.firstOrNull { it.id == eventId }
+                val uid = repository.sessionUid.value.orEmpty()
+                _uiState.update { state ->
+                    if (event == null) state.copy(event = null, loading = loading)
+                    else {
+                        val balances = event.balances()
+                        val others = event.participantIds.filter { it != uid }
+                        val nonOwnerParticipantIds = (event.participantIds - event.ownerId).toSet()
+                        state.copy(event = event, title = event.title, currency = event.currency,
+                            createdByName = repository.displayName(event.ownerId),
+                            currentUid = uid, isOrganizer = uid == event.ownerId,
+                            loading = loading || !people.keys.containsAll(event.participantIds),
+                            subtitle = "${PagameRepository.dateLabel(event.createdAt)}\n${event.participantIds.size} participantes",
+                            participantCount = event.participantIds.size, totalAmount = event.totalMinor / 100.0,
+                            averagePerPerson = event.totalMinor / 100.0 / event.participantIds.size.coerceAtLeast(1),
+                            participants = others.map { id -> ParticipantBalance(repository.displayName(id), people[id]?.initial ?: "?",
+                                amountFormatted = money(balances[id] ?: 0, event.currency), id = id) },
+                            expenses = event.expenses.sortedWith(compareByDescending<StoredExpense> { it.createdAt }.thenByDescending { it.id }).map { e -> ExpenseItem(e.id, e.title,
+                                repository.displayName(e.payerId), PagameRepository.dateLabel(e.createdAt), e.amountMinor / 100.0,
+                                e.includedIds.size, includedParticipantNames = e.includedIds.map(repository::displayName),
+                                payerId = e.payerId, includedIds = e.includedIds, createdBy = e.createdBy,
+                                canEdit = uid == event.ownerId || uid == e.createdBy,
+                                createdByName = repository.displayName(e.createdBy)) },
+                            participantCandidates = (friends + nonOwnerParticipantIds.mapNotNull { people[it] }).distinctBy { it.id }.filter { it.id != event.ownerId },
+                            originalParticipantIds = if (state.isParticipantsSheetOpen) state.originalParticipantIds else nonOwnerParticipantIds,
+                            draftParticipantIds = if (state.isParticipantsSheetOpen) state.draftParticipantIds else nonOwnerParticipantIds,
+                            participantExpenseCounts = event.expenseCounts())
+                    }
+                }
+            }.collect()
+        }
     }
-
+    fun dismissError() { _uiState.update { it.copy(errorMessage = null) } }
+    fun selectTab(tab: EventDetailTab) { _uiState.update { it.copy(selectedTab = tab) } }
     fun openParticipantsSheet() {
-        val currentIds = repository.pizzaParticipantIds.value
-        val friends = repository.friends.value
-        val expenses = _uiState.value.expenses
-        val expenseCounts = friends.associate { friend ->
-            friend.id to expenses.count { expense ->
-                expenseIsRelatedToFriend(expense, friend, currentIds)
-            }
-        }
-        _uiState.update {
-            it.copy(
-                allFriends = friends,
-                originalParticipantIds = currentIds,
-                draftParticipantIds = currentIds,
-                participantExpenseCounts = expenseCounts,
-                participantSearchQuery = "",
-                isParticipantsSheetOpen = true,
-                isParticipantChangesConfirmationOpen = false,
-                participantRemovalBlockedMessage = null
-            )
-        }
+        if (!_uiState.value.isOrganizer) { _uiState.update { it.copy(errorMessage = "Solo el organizador puede editar los participantes") }; return }
+        _uiState.update { it.copy(isParticipantsSheetOpen = true, participantSearchQuery = "", draftParticipantIds = it.originalParticipantIds) }
     }
-
     fun closeParticipantsSheet() {
-        _uiState.update {
-            it.copy(
-                draftParticipantIds = it.originalParticipantIds,
-                participantSearchQuery = "",
-                isParticipantsSheetOpen = false,
-                isParticipantChangesConfirmationOpen = false,
-                participantRemovalBlockedMessage = null
-            )
-        }
+        if (_uiState.value.busy) return
+        _uiState.update { it.copy(isParticipantsSheetOpen = false, isParticipantChangesConfirmationOpen = false, participantRemovalBlockedMessage = null) }
     }
-
-    fun updateParticipantSearch(query: String) {
-        _uiState.update { it.copy(participantSearchQuery = query) }
-    }
-
+    fun updateParticipantSearch(query: String) { _uiState.update { it.copy(participantSearchQuery = query) } }
     fun toggleEventParticipant(friend: FriendItem) {
-        val state = _uiState.value
-        if (friend.id !in state.draftParticipantIds) {
-            _uiState.update { it.copy(draftParticipantIds = it.draftParticipantIds + friend.id) }
-            return
-        }
-
-        val relatedExpenseCount = state.participantExpenseCounts[friend.id] ?: 0
-        if (relatedExpenseCount > 0) {
-            val expenseWord = if (relatedExpenseCount == 1) "gasto registrado" else "gastos registrados"
-            _uiState.update {
-                it.copy(
-                    participantRemovalBlockedMessage =
-                        "No puedes quitar a ${friend.name} porque ya tiene $relatedExpenseCount $expenseWord. " +
-                            "Edita o borra esos gastos primero."
-                )
-            }
-        } else {
-            _uiState.update { it.copy(draftParticipantIds = it.draftParticipantIds - friend.id) }
+        if (_uiState.value.busy) return
+        _uiState.update { s ->
+            val count = s.participantExpenseCounts[friend.id] ?: 0
+            if (friend.id in s.draftParticipantIds && count > 0) s.copy(participantRemovalBlockedMessage =
+                "No puedes quitar a ${friend.name} porque tiene $count gastos asociados. Edita o borra esos gastos primero.")
+            else s.copy(draftParticipantIds = if (friend.id in s.draftParticipantIds) s.draftParticipantIds - friend.id else s.draftParticipantIds + friend.id)
         }
     }
-
-    fun dismissParticipantRemovalBlockedMessage() {
-        _uiState.update { it.copy(participantRemovalBlockedMessage = null) }
-    }
-
-    fun showOrganizerRemovalBlockedMessage() {
-        _uiState.update {
-            it.copy(participantRemovalBlockedMessage = "No puedes quitarte del evento porque eres el organizador.")
-        }
-    }
-
+    fun dismissParticipantRemovalBlockedMessage() { _uiState.update { it.copy(participantRemovalBlockedMessage = null) } }
+    fun showOrganizerRemovalBlockedMessage() { _uiState.update { it.copy(participantRemovalBlockedMessage = "El organizador debe permanecer en el evento.") } }
     fun requestSaveParticipantChanges() {
-        _uiState.update {
-            if (it.hasParticipantChanges) {
-                it.copy(isParticipantChangesConfirmationOpen = true)
-            } else {
-                it.copy(isParticipantsSheetOpen = false)
-            }
-        }
+        _uiState.update { if (it.hasParticipantChanges) it.copy(isParticipantChangesConfirmationOpen = true) else it.copy(isParticipantsSheetOpen = false) }
     }
-
-    fun closeParticipantChangesConfirmation() {
-        _uiState.update { it.copy(isParticipantChangesConfirmationOpen = false) }
+    fun closeParticipantChangesConfirmation() { _uiState.update { it.copy(isParticipantChangesConfirmationOpen = false) } }
+    fun confirmParticipantChanges() = action {
+        val s = _uiState.value
+        command("updateParticipants", mapOf("participantIds" to (s.draftParticipantIds + s.event!!.ownerId).toList()))
+        _uiState.update { it.copy(isParticipantsSheetOpen = false, isParticipantChangesConfirmationOpen = false) }
     }
-
-    fun confirmParticipantChanges() {
-        val participantIds = _uiState.value.draftParticipantIds
-        repository.updatePizzaParticipants(participantIds)
-        val count = participantIds.size + 1
-
-        _uiState.update {
-            val subtitleSuffix = it.subtitle.substringAfter("•", "Hoy, 21:30").trim()
-            it.copy(
-                subtitle = "$count participantes • $subtitleSuffix",
-                participantCount = count,
-                averagePerPerson = if (count > 0) it.totalAmount / count else 0.0,
-                participants = repository.pizzaParticipants,
-                originalParticipantIds = participantIds,
-                draftParticipantIds = participantIds,
-                participantSearchQuery = "",
-                isParticipantsSheetOpen = false,
-                isParticipantChangesConfirmationOpen = false,
-                participantRemovalBlockedMessage = null
-            )
-        }
-    }
-
-    private fun expenseIsRelatedToFriend(
-        expense: ExpenseItem,
-        friend: FriendItem,
-        currentParticipantIds: Set<String>
-    ): Boolean {
-        fun matchesFriend(value: String): Boolean {
-            val normalized = value.trim()
-            return normalized.equals(friend.name, ignoreCase = true) ||
-                normalized.equals(friend.name.substringBefore(" "), ignoreCase = true)
-        }
-
-        val paidByFriend = matchesFriend(expense.paidByName)
-        val includedInExpense = if (expense.includedParticipantNames.isEmpty()) {
-            friend.id in currentParticipantIds
-        } else {
-            expense.includedParticipantNames.any(::matchesFriend)
-        }
-        return paidByFriend || includedInExpense
-    }
-
     fun openAddExpenseDialog() {
-        _uiState.update {
-            it.copy(
-                isAddExpenseDialogOpen = true,
-                editingExpenseId = null,
-                newExpenseTitle = "",
-                newExpenseAmount = "",
-                newExpensePayer = "Tú",
-                newExpenseIncludedNames = it.allParticipantNames
-            )
-        }
-    }
-
-    fun openEditExpenseDialog(expense: ExpenseItem) {
-        _uiState.update {
-            it.copy(
-                isAddExpenseDialogOpen = true,
-                editingExpenseId = expense.id,
-                newExpenseTitle = expense.title,
-                newExpenseAmount = expense.amount.toInt().toString(),
-                newExpensePayer = expense.paidByName,
-                newExpenseIncludedNames = expense.includedParticipantNames.ifEmpty { it.allParticipantNames }
-            )
-        }
-    }
-
-    fun closeAddExpenseDialog() {
-        _uiState.update {
-            it.copy(
-                isAddExpenseDialogOpen = false,
-                editingExpenseId = null,
-                newExpenseTitle = "",
-                newExpenseAmount = ""
-            )
-        }
-    }
-
-    fun updateNewTitle(title: String) {
-        _uiState.update { it.copy(newExpenseTitle = title) }
-    }
-
-    fun updateNewAmount(amount: String) {
-        _uiState.update { it.copy(newExpenseAmount = amount) }
-    }
-
-    fun updateNewPayer(payer: String) {
-        _uiState.update { it.copy(newExpensePayer = payer) }
-    }
-
-    fun toggleIncludedParticipant(name: String) {
-        _uiState.update {
-            val current = it.newExpenseIncludedNames
-            val updated = if (name in current) current - name else current + name
-            it.copy(newExpenseIncludedNames = updated)
-        }
-    }
-
-    fun toggleAllIncluded() {
-        _uiState.update {
-            val allSelected = it.newExpenseIncludedNames.size == it.allParticipantNames.size
-            it.copy(newExpenseIncludedNames = if (allSelected) emptyList() else it.allParticipantNames)
-        }
-    }
-
-    fun saveExpense() {
         val state = _uiState.value
-        val amount = state.newExpenseAmount.toDoubleOrNull() ?: 0.0
-        if (state.newExpenseTitle.isNotBlank() && amount > 0 && state.newExpenseIncludedNames.isNotEmpty()) {
-            val editingId = state.editingExpenseId
-            if (editingId != null) {
-                repository.updateExpense(editingId, state.newExpenseTitle, amount, state.newExpensePayer, state.newExpenseIncludedNames)
-            } else {
-                repository.addExpense(state.newExpenseTitle, amount, state.newExpensePayer, state.newExpenseIncludedNames)
-            }
-            val updated = repository.pizzaExpenses.value
-            val newTotal = updated.sumOf { it.amount }
-            _uiState.update {
-                it.copy(
-                    expenses = updated,
-                    totalAmount = newTotal,
-                    averagePerPerson = newTotal / it.participantCount,
-                    isAddExpenseDialogOpen = false,
-                    editingExpenseId = null,
-                    newExpenseTitle = "",
-                    newExpenseAmount = ""
-                )
-            }
-        }
+        if (state.loading || state.busy) return
+        val draft = draftStore.read(state.currentUid, eventId)
+        if (draft != null && state.expenses.none { it.id == draft.id }) {
+            _uiState.update { it.copy(showRestoreDraftDialog = true) }
+        } else startNewExpense()
     }
-
-    fun deleteExpense() {
-        val editingId = _uiState.value.editingExpenseId ?: return
-        repository.deleteExpense(editingId)
-        val updated = repository.pizzaExpenses.value
-        val newTotal = updated.sumOf { it.amount }
-        _uiState.update {
-            it.copy(
-                expenses = updated,
-                totalAmount = newTotal,
-                averagePerPerson = if (it.participantCount > 0) newTotal / it.participantCount else 0.0,
-                isAddExpenseDialogOpen = false,
-                editingExpenseId = null,
-                newExpenseTitle = "",
-                newExpenseAmount = ""
-            )
-        }
+    fun dismissRestoreDraft() { _uiState.update { it.copy(showRestoreDraftDialog = false) } }
+    fun startNewExpense() {
+        val state = _uiState.value
+        if (state.busy || state.loading) return
+        draftStore.clear(state.currentUid, eventId)
+        expenseDraftId = UUID.randomUUID().toString()
+        _uiState.update { it.copy(showRestoreDraftDialog = false, isExpenseSheetOpen = true,
+            editingExpenseId = null, newExpenseTitle = "", amountInputError = null,
+            newExpenseAmount = "", expensePayerName = "Tú", newExpenseIncludedNames = it.allParticipantNames) }
     }
-
+    fun restoreExpenseDraft() {
+        val state = _uiState.value
+        val event = state.event ?: return
+        val draft = draftStore.read(state.currentUid, eventId)
+        if (draft == null || event.expenses.any { it.id == draft.id }) { startNewExpense(); return }
+        expenseDraftId = draft.id
+        val payer = draft.payerId.takeIf { it in event.participantIds } ?: state.currentUid
+        val included = draft.includedIds.filter { it in event.participantIds }
+        _uiState.update { it.copy(showRestoreDraftDialog = false, isExpenseSheetOpen = true,
+            editingExpenseId = null, newExpenseTitle = draft.title, newExpenseAmount = draft.amount,
+            amountInputError = null,
+            expensePayerName = repository.displayName(payer), newExpenseIncludedNames = included.map(repository::displayName)) }
+    }
+    private fun rememberExpenseDraft() {
+        val state = _uiState.value
+        val event = state.event ?: return
+        if (!state.isExpenseSheetOpen || state.editingExpenseId != null || state.currentUid.isBlank()) return
+        val byName = event.participantIds.associateBy(repository::displayName)
+        val payer = byName[state.expensePayerName] ?: state.currentUid
+        val included = state.newExpenseIncludedNames.mapNotNull { byName[it] }
+        val meaningful = state.newExpenseTitle.isNotBlank() || state.newExpenseAmount.isNotBlank()
+            || payer != state.currentUid || included.toSet() != event.participantIds.toSet()
+        if (!meaningful) { draftStore.clear(state.currentUid, eventId); return }
+        draftStore.save(state.currentUid, eventId, ExpenseDraft(expenseDraftId, state.newExpenseTitle,
+            state.newExpenseAmount, payer, included,
+            System.currentTimeMillis() + ExpenseDraftStore.LIFETIME_MS))
+    }
+    fun openEditExpenseDialog(expense: ExpenseItem) {
+        if (!expense.canEdit) { _uiState.update { it.copy(errorMessage = "Solo el autor o el organizador puede editar este gasto") }; return }
+        _uiState.update { it.copy(isExpenseSheetOpen = true, editingExpenseId = expense.id, amountInputError = null,
+            newExpenseTitle = expense.title, newExpenseAmount = BigDecimal.valueOf(expense.amount).toPlainString(),
+            expensePayerName = expense.paidByName, newExpenseIncludedNames = expense.includedParticipantNames) }
+    }
+    fun closeAddExpenseDialog() {
+        if (_uiState.value.busy) return
+        rememberExpenseDraft()
+        _uiState.update { it.copy(isExpenseSheetOpen = false, editingExpenseId = null) }
+    }
+    fun updateNewTitle(value: String) {
+        if (_uiState.value.busy) return
+        _uiState.update { it.copy(newExpenseTitle = value.takeText(100)) }; rememberExpenseDraft()
+    }
+    fun updateNewAmount(value: String) {
+        if (_uiState.value.busy) return
+        val normalized = normalizedAmountInput(value)
+        _uiState.update { if (normalized == null) it.copy(amountInputError = "Solo números, hasta 2 decimales. Máximo: 1,000,000.00")
+            else it.copy(newExpenseAmount = normalized, amountInputError = null) }
+        if (normalized != null) rememberExpenseDraft()
+    }
+    fun updateNewPayer(value: String) {
+        if (_uiState.value.busy) return
+        _uiState.update { it.copy(expensePayerName = value) }; rememberExpenseDraft()
+    }
+    fun toggleIncludedParticipant(name: String) {
+        if (_uiState.value.busy) return
+        _uiState.update { it.copy(newExpenseIncludedNames = if (name in it.newExpenseIncludedNames) it.newExpenseIncludedNames - name else it.newExpenseIncludedNames + name) }
+        rememberExpenseDraft()
+    }
+    fun toggleAllIncluded() {
+        if (_uiState.value.busy) return
+        _uiState.update { it.copy(newExpenseIncludedNames = if (it.newExpenseIncludedNames.size == it.allParticipantNames.size) emptyList() else it.allParticipantNames) }
+        rememberExpenseDraft()
+    }
+    fun saveExpense() = action {
+        val s = _uiState.value
+        val amount = amountMinor(s.newExpenseAmount) ?: run { _uiState.update { it.copy(errorMessage = "Ingresa un monto entre 0.01 y 1,000,000.00, con hasta dos decimales") }; return@action }
+        val event = s.event ?: return@action
+        val names = event.participantIds.associateBy(repository::displayName)
+        val payer = names[s.expensePayerName] ?: error("Pagador no disponible")
+        val included = s.newExpenseIncludedNames.mapNotNull { names[it] }
+        if (included.size != s.newExpenseIncludedNames.size || included.isEmpty()) error("Participantes no disponibles")
+        command(if (s.editingExpenseId == null) "addExpense" else "updateExpense", mapOf(
+            "expenseId" to (s.editingExpenseId ?: expenseDraftId), "title" to s.newExpenseTitle,
+            "amountMinor" to amount, "payerId" to payer, "includedIds" to included))
+        if (s.editingExpenseId == null) draftStore.clear(s.currentUid, eventId)
+        _uiState.update { it.copy(isExpenseSheetOpen = false, editingExpenseId = null) }
+    }
+    fun deleteExpense() = action {
+        val id = _uiState.value.editingExpenseId ?: return@action
+        command("deleteExpense", mapOf("expenseId" to id))
+        _uiState.update { it.copy(isExpenseSheetOpen = false, editingExpenseId = null) }
+    }
     fun requestDeleteEvent() {
-        val expenseCount = _uiState.value.expenses.size
-        if (expenseCount > 0) {
-            val expenseWord = if (expenseCount == 1) "gasto registrado" else "gastos registrados"
-            _uiState.update {
-                it.copy(
-                    deleteEventBlockedMessage =
-                        "No puedes eliminar este evento porque tiene $expenseCount $expenseWord. " +
-                            "Elimina esos gastos primero."
-                )
+        val s = _uiState.value
+        _uiState.update {
+            when {
+                !s.isOrganizer -> it.copy(deleteEventBlockedMessage = "No puedes borrar este evento porque no eres su creador.")
+                s.expenses.isNotEmpty() || s.event?.payments?.isNotEmpty() == true -> it.copy(deleteEventBlockedMessage = "No puedes borrar un evento con gastos o pagos registrados.")
+                else -> it.copy(isDeleteEventConfirmationOpen = true)
             }
-        } else {
-            _uiState.update { it.copy(isDeleteEventConfirmationOpen = true) }
         }
     }
-
-    fun dismissDeleteEventBlockedMessage() {
-        _uiState.update { it.copy(deleteEventBlockedMessage = null) }
+    fun dismissDeleteEventBlockedMessage() { _uiState.update { it.copy(deleteEventBlockedMessage = null) } }
+    fun dismissDeleteEventConfirmation() { _uiState.update { it.copy(isDeleteEventConfirmationOpen = false) } }
+    fun confirmDeleteEvent(onDeleted: () -> Unit) = action {
+        command("deleteEvent"); draftStore.clear(_uiState.value.currentUid, eventId); _uiState.update { it.copy(isDeleteEventConfirmationOpen = false) }; onDeleted()
     }
-
-    fun dismissDeleteEventConfirmation() {
-        _uiState.update { it.copy(isDeleteEventConfirmationOpen = false) }
+    fun reportPayment(value: Settlement) = action {
+        command("reportPayment", mapOf("paymentId" to UUID.randomUUID().toString(), "fromId" to value.fromId,
+            "toId" to value.toId, "amountMinor" to value.amountMinor, "revision" to (_uiState.value.event?.revision ?: 0)))
     }
-
-    fun confirmDeleteEvent() {
-        repository.deleteEvent("event_pizza")
-        _uiState.update { it.copy(isDeleteEventConfirmationOpen = false) }
-    }
-
-    fun settleAccounts() {
-        repository.settlePizzaEvent()
-        _uiState.update { it.copy(isSettledNoticeShown = true) }
-    }
-
-    fun settleBalanceSuggestion(suggestionId: String) {
-        _uiState.update { state ->
-            val settledIds = state.settledBalanceSuggestionIds + suggestionId
-            if (settledIds.containsAll(setOf("you_to_santi", "vale_to_you"))) {
-                repository.settlePizzaEvent()
-            }
-            state.copy(
-                settledBalanceSuggestionIds = settledIds,
-                isSettledNoticeShown = true
-            )
+    fun confirmPayment(id: String) = action { command("confirmPayment", mapOf("paymentId" to id)) }
+    fun rejectPayment(id: String) = action { command("rejectPayment", mapOf("paymentId" to id)) }
+    private suspend fun command(name: String, data: Map<String, Any> = emptyMap()) { repository.command(name, data + ("eventId" to eventId)) }
+    private fun action(block: suspend () -> Unit) {
+        if (_uiState.value.busy) return
+        _uiState.update { it.copy(busy = true, errorMessage = null) }
+        viewModelScope.launch {
+            try { block() } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { _uiState.update { it.copy(errorMessage = userMessage(e)) } }
+            finally { _uiState.update { it.copy(busy = false) } }
         }
     }
 }

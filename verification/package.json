@@ -1,0 +1,10 @@
+{
+  "name": "pagame-spark-verification",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node rules-model.test.mjs",
+    "test:emulator": "node rules-model.test.mjs && firebase emulators:exec --config ../firebase.json --project demo-pagame-spark --only firestore \"node emulator.test.mjs\""
+  },
+  "devDependencies": { "@firebase/rules-unit-testing": "^4.0.0", "firebase": "^11.0.0", "firebase-tools": "^14.0.0" }
+}

@@ -1,0 +1,301 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function active() { return signedIn() && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.deleted == false; }
+    function own(uid) { return signedIn() && request.auth.uid == uid; }
+    function key(id) { return id is string && id.matches('[A-Za-z0-9_-]{1,128}'); }
+    function nonblank(s, max) { return s is string && s.size() > 0 && s.size() <= max && s.matches('.*[^ ].*'); }
+    function currency(c) { return c in ['GTQ', 'USD', 'EUR']; }
+    function profileShape(d, uid) {
+      return d.keys().hasOnly(['uid','name','friendCode','colorIndex','createdAt','deleted']) && d.uid == uid
+        && nonblank(d.name, 60) && d.friendCode.matches('PG-[0-9]{4}')
+        && d.colorIndex is int && d.colorIndex >= 0 && d.colorIndex < 8 && d.deleted is bool;
+    }
+    match /profiles/{uid} {
+      allow get: if signedIn();
+      allow list, delete: if false;
+      allow create: if own(uid) && profileShape(request.resource.data, uid)
+        && request.resource.data.deleted == false && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/friendCodes/$(request.resource.data.friendCode)).data.uid == uid
+        && getAfter(/databases/$(database)/documents/users/$(uid)).data.friendIds == [];
+      allow update: if own(uid) && profileShape(request.resource.data, uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','colorIndex','deleted'])
+        && ((resource.data.deleted == false && request.resource.data.deleted == false)
+          || (request.resource.data.deleted == true && request.resource.data.name == 'Usuario eliminado' && request.resource.data.colorIndex == 0));
+    }
+    match /friendCodes/{code} {
+      allow get: if signedIn();
+      allow list, update: if false;
+      allow create: if signedIn() && code.matches('PG-[0-9]{4}')
+        && request.resource.data.keys().hasOnly(['uid']) && request.resource.data.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.friendCode == code
+        && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.deleted == false;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.deleted == true;
+    }
+    function settingsShape(d) {
+      return d.keys().hasOnly(['currency','theme','friendIds']) && currency(d.currency)
+        && d.theme in ['LIGHT','DARK','SYSTEM'] && d.friendIds is list && d.friendIds.size() <= 300
+        && d.friendIds.size() == d.friendIds.toSet().size();
+    }
+    // Accepting one pending request is the only way to add a new friend.
+    function acceptedNow(sender, recipient) {
+      let id = sender + '~' + recipient;
+      return request.auth.uid == recipient
+        && exists(/databases/$(database)/documents/friendRequests/$(id))
+        && get(/databases/$(database)/documents/friendRequests/$(id)).data.status == 'pending'
+        && getAfter(/databases/$(database)/documents/friendRequests/$(id)).data.status == 'accepted';
+    }
+    function mutualFriendAddition(uid, a, b) {
+      let added = b.friendIds.removeAll(a.friendIds);
+      return b.diff(a).affectedKeys().hasOnly(['friendIds'])
+        && a.friendIds.toSet().difference(b.friendIds.toSet()).size() == 0 && added.size() == 1
+        && key(added[0]) && added[0] != uid
+        && (acceptedNow(uid, added[0]) || acceptedNow(added[0], uid))
+        && uid in getAfter(/databases/$(database)/documents/users/$(added[0])).data.friendIds;
+    }
+    // An old one-sided friendship may already contain the accepted UID (arrayUnion is a no-op).
+    function unchangedLegacyFriend(uid, a, b) {
+      return b == a && uid != request.auth.uid && request.auth.uid in a.friendIds
+        && acceptedNow(uid, request.auth.uid);
+    }
+    function friendshipCleared(a, b) {
+      return (!existsAfter(/databases/$(database)/documents/users/$(a))
+          || !(b in getAfter(/databases/$(database)/documents/users/$(a)).data.friendIds))
+        && (!existsAfter(/databases/$(database)/documents/users/$(b))
+          || !(a in getAfter(/databases/$(database)/documents/users/$(b)).data.friendIds));
+    }
+    function removesFriend(uid, a, b) {
+      let removed = a.friendIds.removeAll(b.friendIds);
+      let other = uid == request.auth.uid ? (removed.size() == 1 ? removed[0] : '') : request.auth.uid;
+      let sent = uid + '~' + other;
+      let received = other + '~' + uid;
+      return key(other) && other != uid && b.diff(a).affectedKeys().hasOnly(['friendIds'])
+        && b.friendIds == a.friendIds.removeAll([other])
+        && (uid == request.auth.uid ? removed.size() == 1
+          : uid in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.friendIds)
+        // This document already removes 'other'; only the counterpart needs a lookup.
+        && (!existsAfter(/databases/$(database)/documents/users/$(other))
+          || !(uid in getAfter(/databases/$(database)/documents/users/$(other)).data.friendIds))
+        && !existsAfter(/databases/$(database)/documents/friendRequests/$(sent))
+        && !existsAfter(/databases/$(database)/documents/friendRequests/$(received));
+    }
+    match /users/{uid} {
+      allow read: if own(uid);
+      allow create: if own(uid) && settingsShape(request.resource.data) && request.resource.data.friendIds == []
+        && request.resource.data.currency == 'GTQ' && request.resource.data.theme == 'SYSTEM'
+        && getAfter(/databases/$(database)/documents/profiles/$(uid)).data.deleted == false;
+      allow update: if active() && settingsShape(request.resource.data)
+        && ((own(uid) && request.resource.data.friendIds == resource.data.friendIds)
+          || removesFriend(uid, resource.data, request.resource.data)
+          || mutualFriendAddition(uid, resource.data, request.resource.data)
+          || unchangedLegacyFriend(uid, resource.data, request.resource.data));
+      allow delete: if own(uid) && getAfter(/databases/$(database)/documents/profiles/$(uid)).data.deleted == true;
+    }
+    function requestShape(d, id) {
+      return d.keys().hasOnly(['senderId','recipientId','members','status','createdAt','updatedAt'])
+        && key(d.senderId) && key(d.recipientId) && d.senderId != d.recipientId
+        && id == d.senderId + '~' + d.recipientId
+        && d.members == [d.senderId, d.recipientId];
+    }
+    match /friendRequests/{requestId} {
+      // IDs contain two validated UIDs separated by '~', which is not allowed inside a UID.
+      allow get: if signedIn() && key(request.auth.uid)
+        && (requestId.matches(request.auth.uid + '~[A-Za-z0-9_-]+')
+          || requestId.matches('[A-Za-z0-9_-]+~' + request.auth.uid));
+      allow list: if signedIn() && request.auth.uid in resource.data.members;
+      allow create: if active() && requestShape(request.resource.data, requestId)
+        && request.resource.data.senderId == request.auth.uid && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && get(/databases/$(database)/documents/profiles/$(request.resource.data.recipientId)).data.deleted == false
+        && !existsAfter(/databases/$(database)/documents/friendRequests/$(request.resource.data.recipientId + '~' + request.auth.uid));
+      allow update: if active() && requestShape(request.resource.data, requestId)
+        && request.auth.uid == resource.data.recipientId && resource.data.status == 'pending'
+        && request.resource.data.status == 'accepted' && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt'])
+        && get(/databases/$(database)/documents/profiles/$(resource.data.senderId)).data.deleted == false
+        && resource.data.senderId in getAfter(/databases/$(database)/documents/users/$(resource.data.recipientId)).data.friendIds
+        && resource.data.recipientId in getAfter(/databases/$(database)/documents/users/$(resource.data.senderId)).data.friendIds;
+      allow delete: if active() && request.auth.uid in resource.data.members
+        && (resource.data.status == 'pending' || (resource.data.status == 'accepted'
+          && friendshipCleared(resource.data.senderId, resource.data.recipientId)));
+    }
+    function slots(d) {
+      return d.participantIds is list && d.participantIds.size() >= 1 && d.participantIds.size() <= 30
+        && d.participantIds.size() == d.participantIds.toSet().size() && d.ownerId in d.participantIds
+        && d.memberSlots is list && d.memberSlots.size() == 30
+        && d.memberSlots.removeAll(['']).size() == d.participantIds.size()
+        && d.memberSlots.removeAll(['']).toSet() == d.participantIds.toSet();
+    }
+    function eventShape(d) {
+      return d.keys().hasOnly(['schemaVersion','title','ownerId','participantIds','memberSlots','currency','emoji',
+        'expenses','payments','pendingPayment','revision','createdAt','updatedAt','lastChange'])
+        && d.schemaVersion == 2 && nonblank(d.title, 100) && key(d.ownerId) && slots(d) && currency(d.currency)
+        && d.expenses is map && d.expenses.size() <= 500 && d.payments is map && d.payments.size() <= 500
+        && d.revision is int && d.revision >= 0 && d.updatedAt == request.time
+        && d.lastChange is map && d.lastChange.keys().hasOnly(['kind','id'])
+        && d.lastChange.kind is string && d.lastChange.id is string;
+    }
+    // The head plus each ledger's next revision forces the entire ring into the same atomic write.
+    // Checking a ring keeps per-document rule access below Firestore's limit.
+    function allLedgers(eventId, revision) {
+      return getAfter(/databases/$(database)/documents/events/$(eventId)/ledger/0).data.revision == revision;
+    }
+    function expenseShape(e, members, id) {
+      return e is map && e.keys().hasOnly(['id','title','amountMinor','payerId','includedIds','extraThrough','createdBy','createdAt','emoji'])
+        && e.id == id && key(id) && nonblank(e.title, 100)
+        && e.amountMinor is int && e.amountMinor > 0 && e.amountMinor <= 100000000 && e.payerId in members
+        && e.includedIds is list && e.includedIds.size() > 0 && e.includedIds.size() <= 30
+        && e.includedIds.size() == e.includedIds.toSet().size() && e.includedIds.hasOnly(members)
+        && e.extraThrough is string && (e.amountMinor % e.includedIds.size() == 0
+          ? e.extraThrough == '' : e.extraThrough in e.includedIds)
+        && key(e.createdBy) && e.createdAt is int && e.createdAt > 0;
+    }
+    function expenseChange(a, b) {
+      let id = b.lastChange.id;
+      let kind = b.lastChange.kind;
+      let old = a.expenses.get(id, null);
+      let next = b.expenses.get(id, null);
+      return b.diff(a).affectedKeys().hasOnly(['expenses','pendingPayment','revision','updatedAt','lastChange'])
+        && b.pendingPayment == a.pendingPayment && b.expenses.diff(a.expenses).affectedKeys() == [id].toSet()
+        && (kind == 'addExpense'
+          ? old == null && expenseShape(next, a.participantIds, id) && next.createdBy == request.auth.uid
+          : old != null && (a.ownerId == request.auth.uid || old.createdBy == request.auth.uid)
+            && (kind == 'deleteExpense' ? next == null
+              : expenseShape(next, a.participantIds, id) && next.createdBy == old.createdBy && next.createdAt == old.createdAt));
+    }
+    function paymentShape(p, event) {
+      return p is map && p.keys().hasOnly(['id','fromId','toId','amountMinor','fromSlot','toSlot','status','createdAt'])
+        && key(p.id) && p.fromId != p.toId && p.fromId in event.participantIds && p.toId in event.participantIds
+        && p.amountMinor is int && p.amountMinor > 0 && p.amountMinor <= 50000000000
+        && p.fromSlot is int && p.fromSlot >= 0 && p.fromSlot < 30 && p.toSlot is int && p.toSlot >= 0 && p.toSlot < 30
+        && event.memberSlots[p.fromSlot] == p.fromId && event.memberSlots[p.toSlot] == p.toId
+        && p.status == 'pending' && p.createdAt is int && p.createdAt > 0;
+    }
+    function currentBalance(eventId, slot) {
+      let shard = string(int(math.floor(slot / 3)));
+      return get(/databases/$(database)/documents/events/$(eventId)/ledger/$(shard)).data.cells[slot % 3].balance;
+    }
+    function smaller(a, b) { return a < b ? a : b; }
+    function reportsPayment(eventId, a, b) {
+      let p = b.pendingPayment;
+      return b.diff(a).affectedKeys().hasOnly(['pendingPayment','revision','updatedAt','lastChange'])
+        && a.pendingPayment == null && paymentShape(p, a) && p.id == b.lastChange.id && !(p.id in a.payments)
+        && a.payments.size() < 500 && p.fromId == request.auth.uid
+        && p.amountMinor == smaller(-currentBalance(eventId, p.fromSlot), currentBalance(eventId, p.toSlot));
+    }
+    function resolvesPayment(a, b) {
+      let p = a.pendingPayment;
+      let next = b.payments.get(b.lastChange.id, null);
+      return b.diff(a).affectedKeys().hasOnly(['pendingPayment','payments','revision','updatedAt','lastChange'])
+        && p != null && p.id == b.lastChange.id && p.toId == request.auth.uid && b.pendingPayment == null
+        && (b.lastChange.kind == 'rejectPayment' ? b.payments == a.payments
+          : b.payments.diff(a.payments).affectedKeys() == [p.id].toSet() && !(p.id in a.payments)
+            && next != null && next.diff(p).affectedKeys().hasOnly(['status']) && next.status == 'confirmed');
+    }
+    function membersChange(a, b) {
+      return request.auth.uid == a.ownerId
+        && b.lastChange.id == ''
+        && b.diff(a).affectedKeys().hasOnly(['participantIds','memberSlots','revision','updatedAt','lastChange'])
+        && b.participantIds.removeAll(a.participantIds).hasOnly(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.friendIds);
+    }
+    match /events/{eventId} {
+      allow get: if signedIn() && (!exists(/databases/$(database)/documents/events/$(eventId)) || request.auth.uid in resource.data.participantIds);
+      allow list: if signedIn() && request.auth.uid in resource.data.participantIds;
+      allow create: if active() && key(eventId) && eventShape(request.resource.data)
+        && request.resource.data.ownerId == request.auth.uid && request.resource.data.createdAt == request.time
+        && request.resource.data.revision == 0 && request.resource.data.expenses == {} && request.resource.data.payments == {}
+        && request.resource.data.pendingPayment == null && request.resource.data.lastChange == {'kind':'createEvent','id':''}
+        && request.resource.data.currency == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.currency
+        && request.resource.data.participantIds.removeAll([request.auth.uid]).hasOnly(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.friendIds)
+        && allLedgers(eventId, 0);
+      allow update: if active() && request.auth.uid in resource.data.participantIds && eventShape(request.resource.data)
+        && request.resource.data.revision == resource.data.revision + 1
+        && (request.resource.data.lastChange.kind in ['addExpense','updateExpense','deleteExpense']
+          ? expenseChange(resource.data, request.resource.data)
+          : request.resource.data.lastChange.kind == 'updateParticipants'
+            ? membersChange(resource.data, request.resource.data)
+            : request.resource.data.lastChange.kind == 'reportPayment'
+              ? reportsPayment(eventId, resource.data, request.resource.data)
+              : request.resource.data.lastChange.kind in ['confirmPayment','rejectPayment'] && resolvesPayment(resource.data, request.resource.data))
+        && allLedgers(eventId, request.resource.data.revision);
+      allow delete: if active() && resource.data.ownerId == request.auth.uid
+        && resource.data.expenses == {} && resource.data.payments == {} && resource.data.pendingPayment == null;
+
+      match /ledger/{shard} {
+        function validShard() { return shard in ['0','1','2','3','4','5','6','7','8','9']; }
+        function nextRevision(revision) {
+          let next = string((int(shard) + 1) % 10);
+          return getAfter(/databases/$(database)/documents/events/$(eventId)/ledger/$(next)).data.revision == revision;
+        }
+        // Prefix sums make the sum of all balances zero, including rounding remainders.
+        // Extra cents go to the lexicographic prefix of included UIDs (extraThrough).
+        function prefixValid() {
+          let previous = string(int(shard) - 1);
+          let prefix = shard == '0' ? 0 : getAfter(/databases/$(database)/documents/events/$(eventId)/ledger/$(previous)).data.balancePrefix;
+          let cells = request.resource.data.cells;
+          return request.resource.data.balancePrefix == prefix + cells[0].balance + cells[1].balance + cells[2].balance
+            && (shard != '9' || request.resource.data.balancePrefix == 0);
+        }
+        function zero(uid) { return {'uid':uid,'balance':0,'expenseCount':0,'paymentCount':0}; }
+        function effect(expense, uid) {
+          let included = expense != null && uid in expense.includedIds;
+          let paid = expense != null && expense.payerId == uid;
+          return {'count': included || paid ? 1 : 0,
+            'balance': (paid ? expense.amountMinor : 0) - (included
+              ? int(math.floor(expense.amountMinor / expense.includedIds.size())) + (uid <= expense.extraThrough ? 1 : 0) : 0)};
+        }
+        function involved(payment, uid) { return payment != null && (payment.fromId == uid || payment.toId == uid) ? 1 : 0; }
+        function deltas(a, b) {
+          let expenseOp = b.lastChange.kind in ['addExpense','updateExpense','deleteExpense'];
+          return {'oldExpense':expenseOp ? a.expenses.get(b.lastChange.id, null) : null,
+            'newExpense':expenseOp ? b.expenses.get(b.lastChange.id, null) : null,
+            'confirmed':b.lastChange.kind == 'confirmPayment' ? b.payments[b.lastChange.id] : null,
+            'oldPending':a.pendingPayment, 'newPending':b.pendingPayment};
+        }
+        function sameCell(i, uid, delta) {
+          let old = resource.data.cells[i];
+          let was = effect(delta.oldExpense, uid);
+          let now = effect(delta.newExpense, uid);
+          let p = delta.confirmed;
+          let paid = p == null ? 0 : (p.fromId == uid ? p.amountMinor : (p.toId == uid ? -p.amountMinor : 0));
+          let count = involved(p, uid) + involved(delta.newPending, uid) - involved(delta.oldPending, uid);
+          return request.resource.data.cells[i] == {'uid':uid,
+              'balance':old.balance + now.balance - was.balance + paid,
+              'expenseCount':old.expenseCount + now.count - was.count,
+              'paymentCount':old.paymentCount + count};
+        }
+        function cellValid(i, b, delta) {
+          let old = resource.data.cells[i];
+          let uid = b.memberSlots[int(shard) * 3 + i];
+          return old.uid != uid || uid == ''
+            ? old == zero(old.uid) && request.resource.data.cells[i] == zero(uid)
+            : sameCell(i, uid, delta);
+        }
+        function updatesLedger() {
+          let a = get(/databases/$(database)/documents/events/$(eventId)).data;
+          let b = getAfter(/databases/$(database)/documents/events/$(eventId)).data;
+          let delta = deltas(a, b);
+          return request.auth.uid in a.participantIds && b.revision == a.revision + 1 && resource.data.revision == a.revision
+            && request.resource.data.keys().hasOnly(['revision','cells','balancePrefix']) && request.resource.data.revision == b.revision
+            && request.resource.data.cells is list && request.resource.data.cells.size() == 3
+            && nextRevision(b.revision) && prefixValid() && cellValid(0,b,delta) && cellValid(1,b,delta) && cellValid(2,b,delta);
+        }
+        function createsLedger() {
+          let b = getAfter(/databases/$(database)/documents/events/$(eventId)).data;
+          let offset = int(shard) * 3;
+          return !exists(/databases/$(database)/documents/events/$(eventId)) && b.ownerId == request.auth.uid && b.revision == 0 && nextRevision(0)
+            && request.resource.data == {'revision':0,'balancePrefix':0,'cells':[zero(b.memberSlots[offset]),zero(b.memberSlots[offset+1]),
+              zero(b.memberSlots[offset+2])]};
+        }
+        allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/events/$(eventId)).data.participantIds;
+        allow create: if signedIn() && validShard() && createsLedger();
+        allow update: if signedIn() && validShard() && updatesLedger();
+        allow delete: if signedIn() && get(/databases/$(database)/documents/events/$(eventId)).data.ownerId == request.auth.uid
+          && !existsAfter(/databases/$(database)/documents/events/$(eventId));
+      }
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

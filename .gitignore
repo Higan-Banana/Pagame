@@ -1,15 +1,56 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# Gradle, Kotlin y archivos generados de todos los módulos
+.gradle/
+.kotlin/
+build/
+.externalNativeBuild/
+.cxx/
+captures/
+*.apk
+*.aab
+*.ap_
+*.hprof
+
+# Configuración local del SDK y firma
 local.properties
+key.properties
+keystore.properties
+*.jks
+*.keystore
+
+# Android Studio / IntelliJ: conservar estilos e inspecciones compartidos
+*.iml
+.idea/caches/
+.idea/libraries/
+.idea/modules/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/deploymentTargetSelector.xml
+.idea/deviceManager.xml
+.idea/shelf/
+
+# Herramientas de verificación de Firebase / Node.js
+node_modules/
+.firebase/
+coverage/
+.nyc_output/
+*.log
+firebase-debug.*
+firestore-debug.*
+ui-debug.*
+
+# Variables locales; mantener plantillas de ejemplo
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Archivos temporales del editor y del sistema
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini

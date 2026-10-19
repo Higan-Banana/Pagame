@@ -1,5 +1,8 @@
 package gt.pagame.app.ui.components
 
+import gt.pagame.app.data.model.Currency
+import gt.pagame.app.data.model.money
+import kotlin.math.roundToLong
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -15,6 +18,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -57,12 +62,15 @@ fun PagameCenteredDialog(
 
     Dialog(
         onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .imePadding()
+                .safeDrawingPadding()
                 .padding(horizontal = 18.dp, vertical = 24.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -82,7 +90,9 @@ fun PagameCenteredDialog(
                 )
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
                     content = content
                 )
             }
@@ -103,6 +113,7 @@ fun PagameBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
+        contentWindowInsets = { WindowInsets.safeDrawing },
         modifier = modifier,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
         containerColor = if (isLightTheme) Color.White else MaterialTheme.colorScheme.surface,
@@ -120,9 +131,7 @@ fun PagameBottomSheet(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .imePadding()
-                .navigationBarsPadding(),
+                .fillMaxWidth(),
             content = content
         )
     }
@@ -199,50 +208,13 @@ fun PagameFloatingNotice(
 
             Text(
                 text = message,
+                modifier = Modifier.weight(1f, fill = false),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 color = Color.White,
                 fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 2
+                fontWeight = FontWeight.SemiBold
             )
         }
-    }
-}
-
-@Composable
-fun GuatemalaAvailabilityBadge(
-    modifier: Modifier = Modifier,
-    isSubtle: Boolean = false
-) {
-    val bgColor = if (isSubtle) Color(0xFFECFDF3) else MaterialTheme.colorScheme.primaryContainer
-    val borderColor = if (isSubtle) {
-        Color(0xFFD8E6DB)
-    } else {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
-    }
-    val textColor = if (isSubtle) Color(0xFF137A50) else MaterialTheme.colorScheme.primary
-    val dotColor = if (isSubtle) Color(0xFF137A50) else MaterialTheme.colorScheme.primary
-
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .background(bgColor)
-            .border(1.dp, borderColor, RoundedCornerShape(50))
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(dotColor)
-        )
-        Text(
-            text = "Disponible en Guatemala (Q)",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = textColor
-        )
     }
 }
 
@@ -394,19 +366,20 @@ fun PagameInputField(
 fun BalanceStatusChip(
     status: BalanceStatus,
     amount: Double,
+    currency: Currency = Currency.GTQ,
     modifier: Modifier = Modifier
 ) {
     val (bg, textColor, text, icon) = when (status) {
         BalanceStatus.YOU_ARE_OWED -> Quadruple(
             Color(0xFFE8F7EE),
             Color(0xFF137A50),
-            "Te deben Q${amount.toInt()}",
+            "Te deben ${money((amount * 100).roundToLong(), currency)}",
             Icons.Default.Check
         )
         BalanceStatus.YOU_OWE -> Quadruple(
             Color(0xFFE8F7EE),
             Color(0xFF137A50),
-            "Debes Q${amount.toInt()}",
+            "Debes ${money((amount * 100).roundToLong(), currency)}",
             null
         )
         BalanceStatus.ALL_SETTLED -> Quadruple(
@@ -458,15 +431,17 @@ fun PagameBottomBar(
 ) {
     Surface(
         modifier = modifier
-            .fillMaxWidth()
-            .height(76.dp),
+            .fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 6.dp,
         shadowElevation = 12.dp
     ) {
         Row(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)
+                )
                 .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
