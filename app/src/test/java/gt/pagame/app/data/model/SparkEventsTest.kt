@@ -45,7 +45,7 @@ class SparkEventsTest {
     }
     @Test fun staleBalanceAndInvalidAmountsAreRejected() {
         rejects { SparkEvents.mutate(spent(), "b", "reportPayment", mapOf("paymentId" to "p", "fromId" to "b", "toId" to "a", "amountMinor" to 33L, "revision" to 0L), 1000) }
-        for (amount in listOf(0L, -1L, 100000001L)) rejects { SparkEvents.mutate(empty(), "a", "addExpense", expense + ("amountMinor" to amount), 1000) }
+        for (amount in listOf(0L, -1L, 10000001L)) rejects { SparkEvents.mutate(empty(), "a", "addExpense", expense + ("amountMinor" to amount), 1000) }
     }
     @Test fun thirtyParticipantsKeepEveryCentAcrossShards() {
         val people = (0 until 30).map { "u" + it.toString().padStart(2, '0') }
@@ -103,16 +103,19 @@ class SparkEventsTest {
 
 
     @Test fun amountsRejectLettersSignsExponentsAndExcessPrecision() {
-        assertEquals(100000000L, amountMinor("1000000.00"))
+        assertEquals(10000000L, amountMinor("100000.00"))
         assertEquals(1L, amountMinor("0.01"))
         assertEquals(2345L, amountMinor("23,45"))
-        listOf("1000000.01", "10000000", "1e3", "-1", "+1", "1.234", "2a", "1,000.00", "0").forEach {
+        listOf("100000.01", "10000000", "1e3", "-1", "+1", "1.234", "2a", "1,000.00", "0").forEach {
             assertNull(amountMinor(it))
         }
         assertEquals("12.34", normalizedAmountInput("12,34"))
         assertEquals("", normalizedAmountInput(""))
         assertEquals("1.", normalizedAmountInput("1."))
         assertNull(normalizedAmountInput("a"))
+        assertEquals("100000.00", normalizedAmountInput("100000.00"))
+        assertNull(normalizedAmountInput("100000.01"))
+        assertNull(normalizedAmountInput("1000000"))
         assertEquals("", "🦦".takeText(1))
     }
 

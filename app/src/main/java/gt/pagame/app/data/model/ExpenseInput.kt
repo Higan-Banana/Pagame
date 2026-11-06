@@ -2,8 +2,8 @@ package gt.pagame.app.data.model
 
 import java.math.BigDecimal
 
-private val editableAmount = Regex("[0-9]{0,7}(\\.[0-9]{0,2})?")
-private val maximumAmount = BigDecimal("1000000")
+private val editableAmount = Regex("[0-9]{0,6}(\\.[0-9]{0,2})?")
+private val maximumAmount = BigDecimal("100000")
 
 /** Allow intermediate editing states, but never silently alter pasted amounts. */
 fun normalizedAmountInput(input: String): String? {

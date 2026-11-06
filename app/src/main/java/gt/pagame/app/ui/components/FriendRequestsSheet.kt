@@ -1,5 +1,7 @@
 package gt.pagame.app.ui.components
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 import gt.pagame.app.ui.theme.*
 
 import androidx.compose.foundation.BorderStroke
@@ -16,46 +18,32 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import gt.pagame.app.data.repository.PagameRepository
-import gt.pagame.app.data.repository.userMessage
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
+import androidx.lifecycle.viewmodel.compose.viewModel
+import gt.pagame.app.ui.screens.friends.FriendRequestsUiState
+import gt.pagame.app.ui.screens.friends.FriendRequestsViewModel
 
 /** Shared by Friends and the event draft; accepting never closes or resets the draft. */
 @Composable
 fun FriendRequestsSheet(onDismiss: () -> Unit) {
-    val repository = PagameRepository.instance
-    val requests by repository.friendRequests.collectAsState()
-    val people by repository.people.collectAsState()
-    val uid by repository.sessionUid.collectAsState()
-    val received = requests.filter { it.status == "pending" && it.recipientId == uid }
-    val sent = requests.filter { it.status == "pending" && it.senderId == uid }
-    var busyId by remember { mutableStateOf<String?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var notice by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
-    fun respond(id: String, accept: Boolean, incoming: Boolean) {
-        if (busyId != null) return
-        busyId = id
-        notice = null
-        scope.launch {
-            try {
-                withTimeout(15_000L) {
-                    if (accept) repository.acceptFriendRequest(id) else repository.dismissFriendRequest(id)
-                }
-                notice = if (accept) "Solicitud aceptada. Ahora aparecen en la lista de amigos de ambos."
-                    else if (incoming) "Solicitud rechazada." else "Solicitud cancelada."
-            } catch (e: TimeoutCancellationException) {
-                error = "No se pudo confirmar la respuesta. Revisa el estado de la solicitud antes de volver a intentar."
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                error = userMessage(e)
-            } finally { busyId = null }
-        }
-    }
+    val viewModel: FriendRequestsViewModel = viewModel()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(viewModel) { viewModel.onOpened() }
+    FriendRequestsContent(state, onDismiss, viewModel::respond, viewModel::dismissError)
+}
+
+@Composable
+private fun FriendRequestsContent(
+    state: FriendRequestsUiState,
+    onDismiss: () -> Unit,
+    onRespond: (String, Boolean) -> Unit,
+    onDismissError: () -> Unit
+) {
+    val received = state.received
+    val sent = state.sent
+    val uid = state.uid
+    val people = state.people
+    val busyId = state.busyId
+    val notice = state.notice
     PagameBottomSheet(onDismissRequest = { if (busyId == null) onDismiss() }) {
         Row(Modifier.fillMaxWidth().padding(start = Spacing.page, end = Spacing.compact, top = Spacing.small),
             verticalAlignment = Alignment.CenterVertically) {
@@ -79,7 +67,10 @@ fun FriendRequestsSheet(onDismiss: () -> Unit) {
                 Text("RECIBIDAS (${received.size})", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (received.isEmpty()) item {
+            if (state.loading) item {
+                CircularProgressIndicator(Modifier.padding(Spacing.medium))
+            }
+            if (!state.loading && received.isEmpty()) item {
                 Text("No tienes solicitudes pendientes.", fontSize = MaterialTheme.typography.bodySmall.fontSize,
                     modifier = Modifier.padding(vertical = Spacing.compact))
             }
@@ -90,7 +81,7 @@ fun FriendRequestsSheet(onDismiss: () -> Unit) {
                         modifier = Modifier.padding(top = Spacing.medium, bottom = Spacing.compact),
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                val otherId = request.otherId(uid.orEmpty())
+                val otherId = request.otherId(uid)
                 val person = people[otherId]
                 Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
@@ -108,14 +99,14 @@ fun FriendRequestsSheet(onDismiss: () -> Unit) {
                         }
                         Row(Modifier.fillMaxWidth().padding(top = Spacing.small), horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically) {
-                            TextButton(onClick = { respond(request.id, false, incoming) }, enabled = busyId == null,
+                            TextButton(onClick = { onRespond(request.id, false) }, enabled = busyId == null,
                                 shape = RoundedCornerShape(50)) {
                                 Text(if (incoming) "Rechazar" else "Cancelar solicitud", fontSize = MaterialTheme.typography.bodySmall.fontSize,
                                     fontWeight = FontWeight.Bold)
                             }
                             if (incoming) {
                                 Spacer(Modifier.width(Spacing.small))
-                                Button(onClick = { respond(request.id, true, true) }, enabled = busyId == null,
+                                Button(onClick = { onRespond(request.id, true) }, enabled = busyId == null,
                                     shape = RoundedCornerShape(50)) {
                                     Text("Aceptar", fontSize = MaterialTheme.typography.bodySmall.fontSize, fontWeight = FontWeight.Bold)
                                 }
@@ -125,6 +116,6 @@ fun FriendRequestsSheet(onDismiss: () -> Unit) {
                 }
             }
         }
-        OperationError(error) { error = null }
+        OperationError(state.error, onDismissError)
     }
 }

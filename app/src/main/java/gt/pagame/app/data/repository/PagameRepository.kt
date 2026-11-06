@@ -2,6 +2,8 @@ package gt.pagame.app.data.repository
 
 import com.google.android.gms.tasks.Task
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
@@ -33,24 +35,34 @@ internal suspend fun <T> Task<T>.awaitResult(): T = suspendCancellableCoroutine 
     addOnCanceledListener { continuation.cancel() }
 }
 fun userMessage(error: Throwable): String = when (error) {
-    is PagameValidationException -> error.message ?: "Revisa los datos de la operación."
+    is PagameValidationException -> error.message ?: "No se puede completar la operación porque los datos no son válidos."
+    is FirebaseNetworkException -> "No se pudo conectar con el servicio. Revisa tu conexión e intenta nuevamente."
+    is FirebaseTooManyRequestsException -> "No puedes continuar por ahora porque hubo demasiados intentos. Espera unos minutos antes de volver a intentar."
     is FirebaseFirestoreException -> when (error.code) {
-        FirebaseFirestoreException.Code.PERMISSION_DENIED -> "No se pudo autorizar el cambio. Revisa los permisos o las reglas Spark publicadas en Firebase."
-        FirebaseFirestoreException.Code.UNAVAILABLE -> "No hay conexión con Firebase. Intenta nuevamente."
-        FirebaseFirestoreException.Code.ABORTED -> "Los datos cambiaron al mismo tiempo. Intenta nuevamente."
-        else -> "No se pudo guardar el cambio. Intenta nuevamente."
+        FirebaseFirestoreException.Code.PERMISSION_DENIED -> "No se pudo autorizar la operación: tu cuenta no tiene permiso para este cambio o los datos ya no cumplen las condiciones de seguridad. Actualiza la pantalla y vuelve a revisar."
+        FirebaseFirestoreException.Code.UNAUTHENTICATED -> "No puedes continuar porque tu sesión ya no es válida. Cierra sesión y vuelve a ingresar."
+        FirebaseFirestoreException.Code.UNAVAILABLE -> "No se pudo conectar con Firebase. Revisa tu conexión e intenta nuevamente."
+        FirebaseFirestoreException.Code.ABORTED -> "No se pudo guardar porque otra persona modificó los datos al mismo tiempo. Actualiza la pantalla y vuelve a intentar."
+        FirebaseFirestoreException.Code.NOT_FOUND -> "No se puede completar la operación porque el registro ya no existe. Actualiza la pantalla."
+        FirebaseFirestoreException.Code.RESOURCE_EXHAUSTED -> "No se pudo completar la operación porque el servicio alcanzó temporalmente su límite de uso. Intenta más tarde."
+        FirebaseFirestoreException.Code.DEADLINE_EXCEEDED -> "No se pudo confirmar la respuesta a tiempo. Actualiza la pantalla para comprobar si el cambio se guardó antes de repetirlo."
+        else -> "No se pudo completar la operación. Actualiza la pantalla y comprueba su estado antes de volver a intentar."
     }
     is FirebaseAuthException -> when (error.errorCode) {
-        "ERROR_EMAIL_ALREADY_IN_USE" -> "Este correo ya está registrado."
-        "ERROR_INVALID_EMAIL" -> "Ingresa un correo válido."
-        "ERROR_WEAK_PASSWORD" -> "Usa una contraseña de al menos 6 caracteres."
-        "ERROR_TOO_MANY_REQUESTS" -> "Demasiados intentos. Espera un momento."
-        "ERROR_REQUIRES_RECENT_LOGIN" -> "Cierra sesión y vuelve a ingresar para eliminar tu cuenta."
-        "ERROR_USER_DISABLED" -> "Esta cuenta está deshabilitada."
-        else -> "No se pudo iniciar sesión. Revisa el correo y la contraseña."
+        "ERROR_EMAIL_ALREADY_IN_USE" -> "No puedes crear la cuenta porque ese correo ya está registrado. Inicia sesión o recupera tu contraseña."
+        "ERROR_INVALID_EMAIL" -> "No puedes continuar porque el formato del correo no es válido."
+        "ERROR_WEAK_PASSWORD" -> "No puedes crear la cuenta porque la contraseña no cumple los requisitos de seguridad de Firebase."
+        "ERROR_TOO_MANY_REQUESTS" -> "No puedes continuar por ahora porque hubo demasiados intentos. Espera unos minutos."
+        "ERROR_REQUIRES_RECENT_LOGIN" -> "Por seguridad, cierra sesión y vuelve a ingresar antes de eliminar tu cuenta."
+        "ERROR_USER_DISABLED" -> "No puedes ingresar porque esta cuenta está deshabilitada."
+        "ERROR_USER_TOKEN_EXPIRED", "ERROR_INVALID_USER_TOKEN" -> "No puedes continuar porque tu sesión ya no es válida. Cierra sesión y vuelve a ingresar."
+        "ERROR_WRONG_PASSWORD", "ERROR_USER_NOT_FOUND", "ERROR_INVALID_CREDENTIAL", "ERROR_INVALID_LOGIN_CREDENTIALS" -> "No se pudo validar el correo y la contraseña. Revisa ambos datos o recupera tu contraseña."
+        "ERROR_OPERATION_NOT_ALLOWED" -> "No se puede completar la operación porque este método de acceso no está habilitado."
+        else -> "No se pudo completar la operación de cuenta. Revisa los datos e intenta nuevamente."
     }
-    else -> "No se pudo completar la operación. Revisa tu conexión."
+    else -> "No se pudo completar la operación. Actualiza la pantalla y comprueba su estado antes de volver a intentar."
 }
+
 class PagameRepository private constructor() {
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
@@ -298,13 +310,9 @@ class PagameRepository private constructor() {
     suspend fun resetPassword(email: String) { auth.sendPasswordResetEmail(email.trim()).awaitResult() }
     fun signOut() { auth.signOut() }
     suspend fun deleteAccount() {
-        val user = auth.currentUser ?: return
-        val token = user.getIdToken(false).awaitResult()
-        val authTime = (token.claims["auth_time"] as? Number)?.toLong() ?: 0
-        ensure(System.currentTimeMillis() / 1000 - authTime < 300,
-            "Por seguridad, cierra sesión y vuelve a ingresar antes de eliminar tu cuenta.")
+        val user = auth.currentUser ?: throw PagameValidationException("No puedes eliminar la cuenta porque no has iniciado sesión.")
         val events = db.collection("events").whereArrayContains("participantIds", user.uid).limit(1).get(Source.SERVER).awaitResult()
-        ensure(events.isEmpty, "Primero debes salir de tus eventos o eliminarlos si eres organizador.")
+        ensure(events.isEmpty, "No puedes eliminar tu cuenta porque todavía perteneces a uno o más eventos. El organizador debe retirarte si no tienes gastos ni pagos asociados; si eres el organizador, solo puedes eliminar eventos vacíos. El historial de gastos y pagos se conserva.")
         // A minimal tombstone preserves identity if another device was inviting this UID concurrently.
         db.runTransaction { tx ->
             val current = tx.get(profile(user.uid))
@@ -345,7 +353,7 @@ class PagameRepository private constructor() {
         if (!FriendCode.isComplete(code)) return null
         val entry = db.collection("friendCodes").document(code).get(Source.SERVER).awaitResult()
         val friendId = entry.getString("uid") ?: return null
-        if (friendId == uid) return null
+        if (friendId == uid) throw PagameValidationException("No puedes enviarte una solicitud a ti mismo. Ingresa el código de otra persona.")
         val found = profile(friendId).get(Source.SERVER).awaitResult()
         return if (found.exists() && found.getBoolean("deleted") != true) person(found.data.orEmpty(), friendId) else null
     }

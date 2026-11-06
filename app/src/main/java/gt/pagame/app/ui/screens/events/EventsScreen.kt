@@ -27,7 +27,7 @@ import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -53,7 +53,7 @@ fun EventsScreen(
     onNavigateToDetail: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     OperationError(uiState.errorMessage, viewModel::dismissError)
     // Reset only after a successful creation, alongside the updated event list.
     // A fresh state prevents keyed items from retaining the previous scroll anchor.
@@ -120,7 +120,7 @@ fun EventsScreen(
 
             Spacer(modifier = Modifier.height(Spacing.compact))
 
-            PagamePullToRefresh(Modifier.weight(1f).fillMaxWidth()) {
+            PagameRefreshContainer(Modifier.weight(1f).fillMaxWidth()) {
                 // Content: Event List or Empty State
                 if (uiState.events.isEmpty()) {
                     EventsEmptyState(
@@ -376,6 +376,8 @@ fun EventsScreen(
                     modifier = Modifier.padding(top = Spacing.medium),
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
                 )
+                BlockedActionHint(uiState.createBlockedReason,
+                    Modifier.padding(horizontal = Spacing.page, vertical = Spacing.small))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -389,7 +391,7 @@ fun EventsScreen(
                     Spacer(modifier = Modifier.width(Spacing.small))
                     Button(
                         onClick = { viewModel.createEvent() },
-                        enabled = uiState.newEventTitle.isNotBlank() && !uiState.busy,
+                        enabled = uiState.createBlockedReason == null,
                         shape = RoundedCornerShape(50),
                         contentPadding = PaddingValues(horizontal = Spacing.page, vertical = Spacing.compact)
                     ) {

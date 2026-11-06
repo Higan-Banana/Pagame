@@ -193,3 +193,49 @@ Verificación posterior:
 - Se compilaron las pruebas contra esas clases, usando friend paths para los símbolos internal, y pasaron las 27 pruebas Kotlin. Ya no fue necesario extraer EventDetailUiState para esa ejecución.
 - Esta comprobación no genera un APK ni valida empaquetado, recursos nuevos o representación visual en un dispositivo. Siguen pendientes el ensamblado con Gradle y la revisión de tipografías, barras, navegación por gestos/tres botones y nombres largos en pantalla.
 - No se modificaron reglas Firebase ni operaciones de negocio en esta intervención.
+
+13. RECOLECCIÓN CON CICLO DE VIDA Y MVVM — 26 DE OCTUBRE DE 2026
+
+El usuario pidió corregir collectAsState y después completar MVVM sin cambiar los flujos funcionales.
+- Se migraron las 18 recolecciones a collectAsStateWithLifecycle. ConnectionStatus usa initialValue para su callbackFlow. Se añadió lifecycle-runtime-compose con la misma versión Lifecycle del catálogo.
+- AppViewModel reúne sesión, perfil, perfiles públicos y sincronización en AppUiState; expone tema y acciones de reintento/cierre. El formulario para completar perfil conserva el nombre con SavedStateHandle y ejecuta el guardado en viewModelScope. MainActivity y NavGraph ya no usan el repositorio.
+- FriendRequestsViewModel filtra recibidas/enviadas y ejecuta aceptar/rechazar/cancelar, con bloqueo de operaciones simultáneas, timeout, avisos y errores. FriendRequestsSheet conserva únicamente la conexión al ViewModel y la presentación.
+- RefreshViewModel realiza refresh y expone progreso/error. PagameRefreshContainer conecta estado y acciones; PagamePullToRefresh recibe callbacks y conserva solamente la animación del gesto.
+- No se encontraron imports/accesos al repositorio o a Firebase en la UI fuera de ViewModels. Los ViewModels siguen usando PagameRepository y los datos remotos existentes.
+- README incluye diagrama Mermaid de arquitectura y responsabilidades de los nuevos ViewModels.
+- Gradle sigue fallando con Unable to establish loopback connection. Se compilaron todos los Kotlin de producción con Kotlin/Compose 2.2.10 y dependencias Android en caché, incluyendo lifecycle-runtime-compose 2.8.7: correcto. Esta verificación no genera APK ni prueba la UI o Firebase en un dispositivo.
+- El registro build-error.txt revisado anteriormente sí mostraba assembleDebug completado desde la terminal del usuario, pero fallaba el inicio de testDebugUnitTest por GradleWorkerMain. No confundir ese APK anterior con una compilación de estos cambios.
+- Las 27 pruebas Kotlin existentes se compilaron contra las clases nuevas y pasaron con JUnit. Cubren modelos y estado de detalle; no verifican la ejecución de los nuevos ViewModels con Firebase/Android.
+
+14. SEGURIDAD Y MENSAJES DE RESTRICCIONES — 6 DE NOVIEMBRE DE 2026
+
+El usuario pidió mejoras de seguridad y mensajes que expliquen por qué no se puede hacer una acción; durante el trabajo pidió explicar las reglas y compartió la rúbrica de Fase 3.
+- firestore.rules incorpora recentSignIn: auth_time entero y edad entre 0 y menos de 300 segundos respecto de request.time del servidor. Se aplica al anonimizar perfil y borrar preferencias/código. No se publicó en Firebase.
+- El manifiesto deshabilita allowBackup y usesCleartextTraffic. No se cifraron los borradores de SharedPreferences ni se activó App Check/verificación obligatoria de correo.
+- userMessage distingue permisos, sesión inválida, red, conflictos, registro inexistente, cuotas y tiempos de espera; no muestra excepciones internas. El error genérico no inventa una causa exacta de denegación.
+- ActionRestrictions comparte motivos de bloqueo de formularios, eliminación de evento y retiro de participantes con gastos/pagos; tiene 7 pruebas nuevas.
+- Los formularios de evento/gasto/agregar amigo/perfil/nombre muestran motivos para botones bloqueados. El botón editar gasto permite pulsar y el ViewModel explica la falta de permiso. Pagos indican quién puede reportar/resolver y por qué un pendiente bloquea otro pago. Registro informa qué requisito falta; buscar el código propio devuelve un mensaje específico.
+- El ViewModel de detalle no lanza errores técnicos genéricos cuando el pagador o participantes ya no están disponibles. Retirar participantes verifica pagos pendientes/confirmados antes de enviar.
+- 43 pruebas locales de reglas aprobadas (2 nuevas con sesiones recientes, antiguas, futuras y borrado de preferencias/código). El intérprete local modela toMillis y auth_time; escenarios del emulador transmiten la antigüedad.
+- Compilación de todos los Kotlin de producción con Kotlin/Compose y dependencias en caché correcta; 34 pruebas Kotlin aprobadas. No equivale a ensamblar APK ni probar Firebase/dispositivo. Emulador oficial pendiente.
+- La rúbrica Fase 3 exige además CI por PR con build/tests/lint, pruebas de ViewModel/repositorio, Analytics/Crashlytics, QA manual, feedback y planificación. Compartir la rúbrica no autoriza implementar todos esos extras.
+
+15. BOTÓN FIJO Y SELECCIÓN DE PAGADOR — 6 DE NOVIEMBRE DE 2026
+
+El usuario pidió quitar el punto con check del avatar del pagador y fijar Agregar gasto abajo sin tapar la lista.
+- EventDetailScreen ya no dibuja la pequeña insignia circular sobre el pagador. Conserva borde, texto de selección y semántica accesible de seleccionado.
+- Agregar gasto ocupa una fila inferior fija dentro de la Column, fuera del área desplazable. Respeta la navegación inferior del sistema y reserva su altura real; no se superpone a las tarjetas.
+- ExpensesTabView deja de reservar 96 dp más insets para un FAB superpuesto y utiliza un margen final de 16 dp. Balance conserva su distribución.
+- Verificación: todos los Kotlin de producción compilaron con Compose y dependencias en caché; pasaron 34 pruebas Kotlin existentes. No se generó un APK ni se verificó visualmente en Android.
+
+16. MÁXIMO POR GASTO DE 100,000.00 — 6 DE NOVIEMBRE DE 2026
+
+El usuario aclaró que quería reducir el monto permitido por gasto y eligió 100,000.00.
+- ExpenseInput, amountMinor, SparkEvents y firestore.rules usan máximo de 10,000,000 centavos (100,000.00 unidades de la moneda del evento).
+- Se actualizaron placeholder, mensajes, README, referencia de pruebas y casos de límites. No se limita la suma total de varios gastos a 100,000.00 ni se modifican datos remotos existentes.
+- Se mantiene la presentación del total en una línea con ajuste automático de tamaño. El encabezado muestra solo la fecha, sin hora, participantes o creador; la identificación del creador sigue en otros datos del modelo/lista.
+- Pasaron las 44 pruebas locales de reglas, incluida aceptación del máximo y rechazo de un centavo por encima. Reglas locales no publicadas; APK pendiente.
+
+17. RETIRO DEL LÍMITE PROPIO DE SESIÓN PARA ELIMINAR CUENTA — 6 DE NOVIEMBRE DE 2026
+
+El usuario pidió quitar el inicio de sesión reciente para eliminar cuenta. Se retiró recentSignIn y sus condiciones en firestore.rules, y la comprobación manual de auth_time/300 segundos en PagameRepository.deleteAccount. Siguen los permisos de propietario, la anonimización y la comprobación de eventos asociados. Firebase Authentication puede devolver ERROR_REQUIRES_RECENT_LOGIN en user.delete(); ese requisito del servicio no se puede quitar con reglas de Firestore. No se publicó nada. Los tests se actualizaron para permitir sesiones antiguas y seguir denegando usuarios ajenos/no autenticados y eliminación de preferencias/código sin anonimizar.

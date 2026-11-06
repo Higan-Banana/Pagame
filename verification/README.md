@@ -4,7 +4,7 @@ Esta carpeta contiene herramientas de desarrollo; no forma parte del APK ni carg
 
 ## Archivos
 
-- rules-model.test.mjs: 41 escenarios de regresión que leen las reglas actuales.
+- rules-model.test.mjs: 44 escenarios de regresión que leen las reglas actuales.
 - rules-model.mjs: intérprete local de una parte del lenguaje de reglas. No certifica compilación oficial, presupuestos de evaluación ni permisos desplegados.
 - fixtures.mjs y reference-domain.cjs: preparación de escenarios y referencia de cálculos.
 - rules-cases.json: escenarios regenerados por las pruebas locales y utilizados por la suite oficial.
@@ -34,3 +34,14 @@ Los escenarios incluyen perfiles, permisos, amistad recíproca, solicitudes, eli
 La compilación completa de Android se detuvo antes de compilar con Unable to establish loopback connection de Gradle. Las pruebas Kotlin mencionadas no equivalen a compilar el APK, probar Compose o validar SharedPreferences en Android. Quedan pendientes las pruebas visuales, los borradores en dispositivo y la comprobación con el emulador oficial.
 
 Consultar el [README principal](../README.md) para configuración y funciones, y [CONTEXTO_CHAT.txt](../CONTEXTO_CHAT.txt) para las decisiones del proyecto.
+
+Actualización del 6 de noviembre de 2026: pasaron los 43 tests locales de reglas,
+incluida autenticación reciente para eliminar/anonimizar cuenta. Las sesiones
+antiguas no pueden borrar preferencias ni códigos. El intérprete usa un tiempo
+fijo y la suite oficial transforma la antigüedad a auth_time del reloj actual.
+No se ejecutó la suite oficial. También pasaron 34 pruebas Kotlin con compilación
+local de todos los fuentes de producción; no se generó un APK actualizado.
+
+El máximo vigente por gasto es 100,000.00 (10,000,000 centavos). Los 44 tests locales incluyen el máximo exacto y el rechazo de 100,000.01.
+
+La restricción propia de cinco minutos fue retirada por solicitud del usuario. Los tests actuales comprueban sesiones antiguas sin perder controles de propietario y anonimización. El historial anterior de resultados no describe la regla vigente de sesión.

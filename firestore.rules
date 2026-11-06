@@ -145,7 +145,7 @@ service cloud.firestore {
     function expenseShape(e, members, id) {
       return e is map && e.keys().hasOnly(['id','title','amountMinor','payerId','includedIds','extraThrough','createdBy','createdAt','emoji'])
         && e.id == id && key(id) && nonblank(e.title, 100)
-        && e.amountMinor is int && e.amountMinor > 0 && e.amountMinor <= 100000000 && e.payerId in members
+        && e.amountMinor is int && e.amountMinor > 0 && e.amountMinor <= 10000000 && e.payerId in members
         && e.includedIds is list && e.includedIds.size() > 0 && e.includedIds.size() <= 30
         && e.includedIds.size() == e.includedIds.toSet().size() && e.includedIds.hasOnly(members)
         && e.extraThrough is string && (e.amountMinor % e.includedIds.size() == 0

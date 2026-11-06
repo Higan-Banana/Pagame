@@ -20,7 +20,7 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -44,7 +44,7 @@ fun FriendsScreen(
     viewModel: FriendsViewModel,
     modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     OperationError(uiState.errorMessage, viewModel::dismissError)
     val clipboard = LocalClipboard.current
     val coroutineScope = rememberCoroutineScope()
@@ -84,7 +84,7 @@ fun FriendsScreen(
                 Spacer(Modifier.height(Spacing.compact))
             }
 
-            PagamePullToRefresh(Modifier.weight(1f).fillMaxWidth()) {
+            PagameRefreshContainer(Modifier.weight(1f).fillMaxWidth()) {
                 // List of Friends or Empty State
                 if (uiState.friends.isEmpty()) {
                     FriendsEmptyState(

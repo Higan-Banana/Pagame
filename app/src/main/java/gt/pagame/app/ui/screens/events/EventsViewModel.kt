@@ -17,7 +17,9 @@ data class EventsUiState(
     val newFriendCode: String = "", val foundFriend: FriendItem? = null,
     val lookupLoading: Boolean = false, val lookupError: String? = null,
     val busy: Boolean = false, val errorMessage: String? = null, val listResetVersion: Long = 0L
-) { val foundFriendName: String get() = foundFriend?.name.orEmpty() }
+) {
+    val createBlockedReason get() = if (busy) "Espera a que termine la operación en curso." else ActionRestrictions.eventTitle(newEventTitle)
+    val foundFriendName: String get() = foundFriend?.name.orEmpty() }
 class EventsViewModel(private val repository: PagameRepository = PagameRepository.instance) : ViewModel() {
     private val _uiState = MutableStateFlow(EventsUiState())
     val uiState = _uiState.asStateFlow()
@@ -89,7 +91,9 @@ class EventsViewModel(private val repository: PagameRepository = PagameRepositor
     }
     fun createEvent() {
         val state = _uiState.value
-        if (state.newEventTitle.isBlank()) return
+        if (state.createBlockedReason != null) {
+            _uiState.update { it.copy(errorMessage = state.createBlockedReason) }; return
+        }
         val id = creationId ?: UUID.randomUUID().toString().also { creationId = it }
         runAction {
             repository.createEvent(id, state.newEventTitle, state.selectedFriendIds)

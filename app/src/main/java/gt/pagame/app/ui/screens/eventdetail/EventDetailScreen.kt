@@ -4,6 +4,8 @@ import gt.pagame.app.data.model.*
 import gt.pagame.app.ui.components.*
 import kotlin.math.roundToLong
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -23,7 +25,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -55,7 +58,7 @@ fun EventDetailScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     OperationError(uiState.errorMessage, viewModel::dismissError)
     if (uiState.loading || uiState.event == null) {
         Column(Modifier.fillMaxSize().safeDrawingPadding().padding(Spacing.page),
@@ -103,7 +106,7 @@ fun EventDetailScreen(
             )
 
             Text(
-                text = "${uiState.subtitle}\nCreado por: ${uiState.createdByName}",
+                text = uiState.subtitle.substringBefore(" • ").substringBefore('\n'),
                 fontSize = MaterialTheme.typography.labelMedium.fontSize,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth().padding(start = Spacing.large, end = Spacing.large, bottom = Spacing.small)
@@ -185,7 +188,7 @@ fun EventDetailScreen(
                 }
             }
 
-            PagamePullToRefresh(Modifier.weight(1f).fillMaxWidth()) {
+            PagameRefreshContainer(Modifier.weight(1f).fillMaxWidth()) {
                 // Tab Content
                 if (uiState.selectedTab == EventDetailTab.EXPENSES) {
                     ExpensesTabView(
@@ -204,19 +207,24 @@ fun EventDetailScreen(
                     )
                 }
             }
-        }
 
-        // Floating Action Button (only on Expenses tab)
-        if (uiState.selectedTab == EventDetailTab.EXPENSES) {
-            PagameExtendedFab(
-                text = "Agregar gasto",
-                icon = Icons.Default.Add,
-                onClick = { viewModel.openAddExpenseDialog() },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                    .padding(end = Spacing.large, bottom = Spacing.fabClearance)
-            )
+            // The footer occupies layout space, so the list always ends above the button.
+            if (uiState.selectedTab == EventDetailTab.EXPENSES) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.background)
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                        .padding(horizontal = Spacing.large, vertical = Spacing.compact),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    PagameExtendedFab(
+                        text = "Agregar gasto",
+                        icon = Icons.Default.Add,
+                        onClick = viewModel::openAddExpenseDialog
+                    )
+                }
+            }
         }
 
         if (uiState.showRestoreDraftDialog) {
@@ -326,7 +334,7 @@ fun EventDetailScreen(
                             supportingText = if (uiState.amountInputError != null) {
                                 { Text(uiState.amountInputError.orEmpty(), fontSize = MaterialTheme.typography.labelMedium.fontSize) }
                             } else null,
-                            placeholder = { Text("Máximo: 1,000,000.00", fontSize = MaterialTheme.typography.labelLarge.fontSize) },
+                            placeholder = { Text("Máximo: 100,000.00", fontSize = MaterialTheme.typography.labelLarge.fontSize) },
                             prefix = {
                                 Text(
                                     text = "${uiState.currency.symbol} ",
@@ -380,6 +388,7 @@ fun EventDetailScreen(
                                 modifier = Modifier
                                     .widthIn(min = 48.dp)
                                     .clip(RoundedCornerShape(16.dp))
+                                    .semantics { selected = isSelected }
                                     .clickable { viewModel.updateNewPayer(name) }
                             ) {
                                 Box(
@@ -400,24 +409,7 @@ fun EventDetailScreen(
                                         fontWeight = FontWeight.ExtraBold,
                                         color = avatarContent
                                     )
-                                    if (isSelected) {
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.BottomEnd)
-                                                .size(17.dp)
-                                                .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.primary)
-                                                .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onPrimary,
-                                                modifier = Modifier.size(10.dp)
-                                            )
-                                        }
-                                    }
+
                                 }
                                 Spacer(modifier = Modifier.height(Spacing.tiny))
                                 Text(
@@ -518,6 +510,8 @@ fun EventDetailScreen(
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+                BlockedActionHint(uiState.expenseSaveBlockedReason,
+                    Modifier.padding(horizontal = Spacing.page, vertical = Spacing.small))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -531,9 +525,7 @@ fun EventDetailScreen(
                     Spacer(modifier = Modifier.width(Spacing.small))
                     Button(
                         onClick = { viewModel.saveExpense() },
-                        enabled = !uiState.busy && uiState.newExpenseTitle.isNotBlank() &&
-                            gt.pagame.app.data.model.amountMinor(uiState.newExpenseAmount) != null && uiState.amountInputError == null &&
-                            uiState.newExpenseIncludedNames.isNotEmpty(),
+                        enabled = uiState.expenseSaveBlockedReason == null,
                         shape = RoundedCornerShape(50),
                         contentPadding = PaddingValues(horizontal = Spacing.page, vertical = Spacing.compact)
                     ) {
@@ -599,14 +591,12 @@ private fun ExpensesTabView(
     onParticipantsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val bottomInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues()
     LazyColumn(
         modifier = modifier
             .fillMaxWidth()
-            .consumeWindowInsets(bottomInsets)
             .padding(horizontal = Spacing.large),
         verticalArrangement = Arrangement.spacedBy(Spacing.medium),
-        contentPadding = PaddingValues(top = Spacing.small, bottom = Spacing.bottomClearance + bottomInsets.calculateBottomPadding())
+        contentPadding = PaddingValues(top = Spacing.small, bottom = Spacing.medium)
     ) {
         // Summary Cards: Total Gastado and Participantes
         item {
@@ -638,11 +628,20 @@ private fun ExpensesTabView(
                             fontWeight = FontWeight.Medium
                         )
                         Spacer(modifier = Modifier.height(Spacing.small))
-                        Text(
+                        BasicText(
                             text = money((uiState.totalAmount * 100).roundToLong(), uiState.currency),
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onPrimary
+                            modifier = Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            autoSize = TextAutoSize.StepBased(
+                                minFontSize = MaterialTheme.typography.bodySmall.fontSize,
+                                maxFontSize = MaterialTheme.typography.headlineMedium.fontSize
+                            ),
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Spacer(modifier = Modifier.height(Spacing.tiny))
                         Text(
@@ -1491,7 +1490,6 @@ fun ExpenseCard(
             Spacer(modifier = Modifier.width(Spacing.medium))
             IconButton(
                 onClick = onClick,
-                enabled = expense.canEdit,
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
@@ -1637,7 +1635,12 @@ private fun BalanceTabView(
                 fromKey = suggestion.fromId, toName = name(suggestion.toId), amount = money(suggestion.amountMinor, event.currency),
                 state = if (suggestion.fromId == uid) BalanceSuggestionState.PAYMENT_REQUIRED else BalanceSuggestionState.WAITING,
                 onPrimaryAction = { onReport(suggestion) }, enabled = !uiState.busy && pending.isEmpty(),
-                message = if (suggestion.fromId == uid) null else "Pendiente de pago")
+                message = when {
+                    uiState.busy -> "Espera a que termine la operación en curso."
+                    pending.isNotEmpty() -> "No puedes informar otro pago porque primero debe confirmarse o rechazarse el pago pendiente."
+                    suggestion.fromId != uid -> "Solo la persona que debe este importe puede informar que lo pagó."
+                    else -> null
+                })
         }
         items(event.payments.sortedBy { it.status == "confirmed" }, key = { "payment_${it.id}" }) { payment ->
             BalanceSuggestionCard(
@@ -1648,7 +1651,10 @@ private fun BalanceTabView(
                     payment.toId == uid -> BalanceSuggestionState.RECEIPT_CONFIRMATION
                     else -> BalanceSuggestionState.WAITING
                 },
-                message = if (payment.status == "pending") "${name(payment.fromId)} indicó que pagó. Confirma el dinero recibido aunque los gastos hayan cambiado." else null,
+                message = if (payment.status == "pending") {
+                    if (payment.toId == uid) "${name(payment.fromId)} indicó que pagó. Confirma el dinero recibido aunque los gastos hayan cambiado."
+                    else "Solo ${name(payment.toId)}, quien recibe el dinero, puede confirmar o rechazar este pago."
+                } else "Este pago confirmado forma parte del historial y no se puede editar ni eliminar.",
                 enabled = !uiState.busy, onPrimaryAction = { onConfirm(payment.id) }, onReject = { onReject(payment.id) })
         }
     }

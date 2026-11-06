@@ -11,62 +11,65 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import gt.pagame.app.data.repository.PagameRepository
-import gt.pagame.app.data.repository.userMessage
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.TimeoutCancellationException
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
+
+/** Connects the reusable gesture UI to its ViewModel. */
+@Composable
+fun PagameRefreshContainer(
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val viewModel: RefreshViewModel = viewModel()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val connected by rememberInternetAvailable()
+    OperationError(state.error, viewModel::dismissError)
+    PagamePullToRefresh(modifier, state.refreshing, { viewModel.refresh(connected) }, content)
+}
 
 /** Refreshes from the server without replacing the live listeners or clearing content. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PagamePullToRefresh(
     modifier: Modifier = Modifier,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
     content: @Composable BoxScope.() -> Unit
 ) {
     val state = rememberPullToRefreshState()
-    val connected by rememberInternetAvailable()
     val scope = rememberCoroutineScope()
-    var refreshing by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-
-    OperationError(error) { error = null }
+    // A local flag only animates the gesture while the ViewModel processes the request.
+    var gesturePending by remember { mutableStateOf(false) }
+    val showRefreshing = refreshing || gesturePending
+    LaunchedEffect(showRefreshing) {
+        if (!showRefreshing) {
+            withFrameNanos { }
+            state.animateToHidden()
+        }
+    }
     PullToRefreshBox(
         modifier = modifier,
         state = state,
-        isRefreshing = refreshing,
+        isRefreshing = showRefreshing,
         onRefresh = {
-            if (!refreshing) {
-                refreshing = true
-                error = null
+            if (!showRefreshing) {
+                gesturePending = true
                 scope.launch {
                     try {
-                        // Let Compose observe true before a very fast request can finish.
                         withFrameNanos { }
                         withFrameNanos { }
-                        if (connected) PagameRepository.instance.refresh()
-                        else error = "Sin conexión. Conéctate a internet para actualizar."
-                    } catch (e: TimeoutCancellationException) {
-                        error = "La actualización tardó demasiado. Revisa tu conexión e intenta de nuevo."
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        error = userMessage(e)
-                    } finally {
-                        refreshing = false
-                        // Hide the gesture indicator too, including fast completions and errors.
-                        withFrameNanos { }
-                        state.animateToHidden()
-                    }
+                        onRefresh()
+                    } finally { gesturePending = false }
                 }
             }
         },
         indicator = {
             PullToRefreshDefaults.Indicator(
                 modifier = Modifier.align(Alignment.TopCenter).semantics {
-                    stateDescription = if (refreshing) "Actualizando…" else "Desliza hacia abajo para actualizar"
+                    stateDescription = if (showRefreshing) "Actualizando…" else "Desliza hacia abajo para actualizar"
                 },
-                isRefreshing = refreshing,
+                isRefreshing = showRefreshing,
                 state = state,
                 containerColor = MaterialTheme.colorScheme.surface,
                 color = MaterialTheme.colorScheme.primary
