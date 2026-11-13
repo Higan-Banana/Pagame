@@ -1,5 +1,7 @@
 package gt.pagame.app.ui.navigation
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 import gt.pagame.app.ui.theme.*
 
 import androidx.compose.animation.EnterTransition
@@ -11,7 +13,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -19,7 +20,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
-import gt.pagame.app.data.repository.*
 import gt.pagame.app.ui.components.*
 import gt.pagame.app.ui.screens.eventdetail.*
 import gt.pagame.app.ui.screens.events.*
@@ -27,19 +27,16 @@ import gt.pagame.app.ui.screens.friends.*
 import gt.pagame.app.ui.screens.login.*
 import gt.pagame.app.ui.screens.options.*
 import gt.pagame.app.ui.screens.register.*
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.CancellationException
 
 @Composable
-fun PagameNavGraph() {
-    val repository = PagameRepository.instance
-    val uid by repository.sessionUid.collectAsState()
-    val people by repository.people.collectAsState()
-    val user by repository.currentUser.collectAsState()
-    val checked by repository.profileChecked.collectAsState()
-    val registering by repository.registering.collectAsState()
-    val loading by repository.loading.collectAsState()
-    val error by repository.error.collectAsState()
+fun PagameNavGraph(appViewModel: AppViewModel) {
+    val state by appViewModel.uiState.collectAsStateWithLifecycle()
+    val uid = state.uid
+    val people = state.people
+    val user = state.user
+    val registering = state.registering
+    val loading = state.loading
+    val error = state.error
     CompositionLocalProvider(LocalPeople provides people, LocalCurrentUid provides uid.orEmpty()) {
         key(uid) {
             val navController = rememberNavController()
@@ -47,7 +44,7 @@ fun PagameNavGraph() {
                 if (uid != null && registering) {
                     ProfileLoading("Creando cuenta…")
                 } else if (uid != null && user.id.isBlank()) {
-                    ProfileSetup(loading = !checked, error = error)
+                    ProfileSetup(state, appViewModel::updateProfileName, appViewModel::saveProfile, appViewModel::signOut)
                 } else {
                     NavHost(navController = navController,
                         startDestination = if (uid == null) Screen.Login.route else Screen.Main.route,
@@ -73,8 +70,8 @@ fun PagameNavGraph() {
                     if (uid != null && loading) LinearProgressIndicator(Modifier.fillMaxWidth().statusBarsPadding())
                     if (uid != null && error != null) AlertDialog(
                         onDismissRequest = {}, title = { Text("No se pudo sincronizar") }, text = { Text(error.orEmpty()) },
-                        confirmButton = { TextButton(onClick = repository::retry) { Text("Reintentar") } },
-                        dismissButton = { TextButton(onClick = repository::signOut) { Text("Cerrar sesión") } })
+                        confirmButton = { TextButton(onClick = appViewModel::retry) { Text("Reintentar") } },
+                        dismissButton = { TextButton(onClick = appViewModel::signOut) { Text("Cerrar sesión") } })
                 }
             }
         }
@@ -92,32 +89,32 @@ private fun ProfileLoading(message: String) {
 }
 
 @Composable
-private fun ProfileSetup(loading: Boolean, error: String?) {
-    if (loading && error == null) {
+private fun ProfileSetup(
+    state: AppUiState,
+    onNameChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onSignOut: () -> Unit
+) {
+    if (!state.profileChecked && state.error == null) {
         ProfileLoading("Cargando perfil…")
         return
     }
-    val repository = PagameRepository.instance
-    var name by rememberSaveable { mutableStateOf("") }
-    var busy by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(Spacing.page),
         verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Completa tu perfil", style = MaterialTheme.typography.headlineSmall)
         Text("Tu cuenta está creada. Guarda tu nombre para comenzar.")
-        OutlinedTextField(name, { name = it.take(60) }, label = { Text("Nombre completo") }, singleLine = true)
-        (message ?: error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(enabled = name.isNotBlank() && !busy, onClick = {
-            busy = true; message = null
-            scope.launch {
-                try { repository.initProfile(name); repository.retry() }
-                catch (e: CancellationException) { throw e }
-                catch (e: Exception) { message = userMessage(e) }
-                finally { busy = false }
-            }
-        }) { Text(if (busy) "Guardando…" else "Guardar perfil") }
-        TextButton(onClick = repository::signOut) { Text("Cerrar sesión") }
+        OutlinedTextField(state.profileName, onNameChange, label = { Text("Nombre completo") }, singleLine = true,
+            enabled = !state.savingProfile)
+        (state.profileError ?: state.error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        BlockedActionHint(when {
+            state.savingProfile -> "Espera a que termine de guardarse tu perfil."
+            state.profileName.isBlank() -> "No puedes completar el perfil porque falta tu nombre."
+            else -> null
+        })
+        Button(enabled = state.profileName.isNotBlank() && !state.savingProfile, onClick = onSave) {
+            Text(if (state.savingProfile) "Guardando…" else "Guardar perfil")
+        }
+        TextButton(onClick = onSignOut) { Text("Cerrar sesión") }
     }
 }
 
@@ -131,7 +128,7 @@ fun MainContainer(
     val eventsViewModel: EventsViewModel = viewModel()
     val friendsViewModel: FriendsViewModel = viewModel()
     val optionsViewModel: OptionsViewModel = viewModel()
-    val eventsUiState by eventsViewModel.uiState.collectAsState()
+    val eventsUiState by eventsViewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,

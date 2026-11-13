@@ -9,6 +9,7 @@ const size=x=>x instanceof Set?x.size:Array.isArray(x)||typeof x==='string'?x.le
 function method(obj,k,args){
  switch(k){
   case 'size': return size(obj);
+  case 'toMillis': return obj;
   case 'keys': return Object.keys(obj);
   case 'toSet': return new Set(obj);
   case 'get': return Object.hasOwn(obj,args[0])?obj[args[0]]:args[1];
@@ -110,12 +111,12 @@ export class RulesModel{
   }
   throw Error('Unsupported node '+JSON.stringify(node));
  }
- authorize(before,writes,uid,{verbose=false}={}){
+ authorize(before,writes,uid,{verbose=false,authAgeSeconds=0}={}){
   this.before=before;this.after={...before};for(const [path,data]of Object.entries(writes)){if(data===null)delete this.after[path];else this.after[path]=data}
   const reports=[];
   for(const [path,data]of Object.entries(writes)){
    const segments=path.split('/');const scope=segments.includes('ledger')?'ledger':segments[0];const op=data===null?'delete':before[path]===undefined?'create':'update';
-   const env={database:'test',uid:segments[1],eventId:segments[1],shard:segments[3],code:segments[1],requestId:segments[1],resource:{data:before[path]},request:{auth:uid?{uid}:null,time:1000,resource:{data}}};
+   const env={database:'test',uid:segments[1],eventId:segments[1],shard:segments[3],code:segments[1],requestId:segments[1],resource:{data:before[path]},request:{auth:uid?{uid,token:{auth_time:1-authAgeSeconds}}:null,time:1000,resource:{data}}};
    this.count=0;this.accessCalls=0;this.reads=new Set();let allowed=false,error;
    for(const expr of this.allows[scope]?.[op]??[]){try{allowed ||= Boolean(this.evaluate(expr,env))}catch(e){error=e.message}}
    reports.push({path,allowed,expressions:this.count,accesses:this.reads.size,accessCalls:this.accessCalls,error});

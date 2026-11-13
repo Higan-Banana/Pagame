@@ -13,7 +13,7 @@ Está desarrollada con Kotlin y Jetpack Compose. Utiliza Firebase Authentication
 - Editar nombre y color del perfil, copiar o compartir el código de amigo.
 - Tema claro, oscuro o del sistema.
 - Monedas GTQ, USD y EUR. La preferencia se aplica a eventos nuevos; no convierte los importes existentes.
-- Cierre de sesión y eliminación de cuenta con comprobaciones de autenticación reciente y eventos asociados.
+- Cierre de sesión y eliminación de cuenta con comprobación de eventos asociados y requisitos propios de Firebase Authentication.
 
 ### Amigos
 
@@ -84,13 +84,77 @@ Los eventos actuales usan schemaVersion 2. Los documentos de formatos anteriores
 
 El flujo habitual es Pantalla → ViewModel → PagameRepository → Firebase. SparkEvents prepara y valida las operaciones de eventos; EventAccounting calcula los valores derivados. Firestore vuelve a comprobar los permisos y la consistencia al guardar el evento junto con sus diez documentos auxiliares ledger.
 
+### Arquitectura MVVM
+
+```mermaid
+flowchart LR
+    UI[Compose: pantallas y componentes] -->|Acciones| VM[ViewModels]
+    VM -->|Operaciones| R[PagameRepository]
+    R --> AUTH[Firebase Authentication]
+    R --> DB[Cloud Firestore]
+    DB -->|Snapshots| R
+    R -->|StateFlow| VM
+    VM -->|UiState inmutable| UI
+    DETAIL[EventDetailViewModel] --> DRAFT[ExpenseDraftStore: borradores locales]
+```
+
+La UI recolecta el estado mediante `collectAsStateWithLifecycle()`. Los Composables
+muestran datos y envían acciones al ViewModel; las operaciones de Firebase se
+realizan en el repositorio. La navegación, el portapapeles, el teclado y las
+animaciones permanecen en la capa de UI.
+
+- `AppViewModel`: tema, sesión, perfiles públicos para avatares y formulario para completar el perfil; conserva el nombre con SavedStateHandle.
+- `FriendRequestsViewModel`: solicitudes recibidas/enviadas, carga, respuesta en proceso, avisos y errores.
+- `RefreshViewModel`: actualización desde el servidor y sus estados de progreso y error; el gesto visual recibe estado y callbacks.
+- Los ViewModels de Eventos, Amigos, Detalle, Login, Registro y Opciones mantienen las acciones y estados propios de cada pantalla.
+
+Los estados usan propiedades `val` y se exponen con `asStateFlow()`. Las listas
+vacías muestran su contenido alternativo; la carga, las operaciones en proceso y
+los errores se representan explícitamente. Los datos existentes se mantienen
+visibles durante la actualización manual.
+
 No se cargan cuentas, amigos, eventos o gastos de prueba al iniciar. FriendDirectory conserva ejemplos aislados de la ejecución, y los datos de pruebas no se publican automáticamente.
+
+## Seguridad y motivos de rechazo
+
+Las reglas de Firestore autorizan las operaciones en el servidor: sesión autenticada,
+preferencias privadas por UID, eventos accesibles a sus participantes, autoría de
+gastos, aceptación recíproca de amistad y confirmaciones de pagos por el receptor.
+Los perfiles básicos y códigos son consultables individualmente por usuarios
+con sesión; no son información privada. Los correos no se guardan en esos perfiles.
+Las colecciones no declaradas quedan denegadas por defecto.
+
+No hay una restricción propia de cinco minutos para eliminar o anonimizar una
+cuenta. Las reglas siguen exigiendo que el usuario sea el dueño del perfil y que
+el perfil esté anonimizado al eliminar preferencias y código. Firebase Authentication
+puede exigir autenticación reciente al ejecutar su propia eliminación de usuario;
+ese requisito del servicio no se desactiva con reglas de Firestore.
+La comprobación de que no quedan eventos asociados está en el cliente; las reglas
+no hacen consultas globales para verificarla.
+
+La UI explica los bloqueos de formularios, permisos de edición, retiro de
+participantes con gastos/pagos, eliminación de eventos con historial y pagos
+pendientes. Los errores de red, sesión, límites de servicio y conflictos muestran
+mensajes sin exponer excepciones internas. Un rechazo genérico de Firebase no
+permite conocer qué condición exacta de una regla falló.
+
+El manifiesto deshabilita copias de seguridad y tráfico HTTP sin cifrar. Esto no
+cifra los borradores locales de SharedPreferences: el cifrado con Keystore sigue
+pendiente si se consideran datos sensibles para la entrega. No se activó App Check
+ni verificación obligatoria de correo. Las reglas no sustituyen controles contra
+abuso ni una auditoría completa de seguridad.
+
+Verificación del 6 de noviembre de 2026: 43 pruebas del intérprete local de reglas
+y 34 pruebas Kotlin aprobadas. Todos los Kotlin de producción compilaron con
+Compose y dependencias en caché. No se ejecutó el emulador oficial ni se generó
+un APK actualizado. Publicar `firestore.rules` requiere una acción aparte; estos
+cambios locales no prueban cuáles reglas están desplegadas.
 
 ## Límites de la aplicación
 
 - Hasta 30 participantes, 500 gastos y 500 pagos confirmados por evento.
 - Hasta 300 amigos por cuenta.
-- Gastos entre 0.01 y 1,000,000.00, con hasta dos decimales. Se acepta punto o coma decimal, sin separadores de miles.
+- Gastos entre 0.01 y 100,000.00, con hasta dos decimales. Se acepta punto o coma decimal, sin separadores de miles.
 - Nombre de perfil hasta 60 unidades UTF-16; nombre de evento y concepto hasta 100. La función de truncado evita cortar un par sustituto.
 - Las restricciones del tamaño de documento y las cuotas de Firestore también se aplican.
 
@@ -114,6 +178,12 @@ Las pruebas locales de reglas no necesitan instalar dependencias. La ejecución 
 En la revisión del 19 de octubre de 2026 pasaron 27 pruebas Kotlin del modelo y del estado de detalle mediante compilador local/JUnit, y 41 pruebas del intérprete local de reglas. La compilación Android completa se detuvo antes de compilar con Unable to establish loopback connection de Gradle. No se completó la prueba visual en un dispositivo ni la suite del emulador oficial Firestore. Tampoco se confirmó la publicación de las reglas remotas.
 
 Después del ajuste de Material 3 se compilaron todos los archivos Kotlin de producción con el plugin de Compose 2.2.10 y el classpath Android disponible en caché, sin errores. Las 27 pruebas Kotlin también pasaron contra esas clases compiladas, sin extraer el estado de interfaz. Esto valida el código fuente, pero no sustituye el ensamblado del APK con Gradle ni la comprobación visual en Android.
+
+Tras el ajuste MVVM del 26 de octubre de 2026 se compilaron todos los Kotlin de
+producción con Compose y las dependencias Android en caché, y pasaron las 27
+pruebas existentes contra esas clases. Gradle sigue detenido por la conexión
+loopback del entorno. Esta comprobación no genera un APK ni prueba los nuevos
+ViewModels con Firebase en un dispositivo.
 
 Antes de distribuir, comprobar con dos cuentas el envío y aceptación de amistad, los eventos compartidos, gastos agregados por distintos miembros, confirmación de pagos, borradores separados por evento y las restricciones de edición y eliminación.
 

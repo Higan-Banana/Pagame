@@ -85,7 +85,7 @@ fun amountMinor(input: String): Long? = try {
     val normalized = normalizedAmountInput(input)
     if (normalized == null || !Regex("[0-9]+(\\.[0-9]{1,2})?").matches(normalized)) null else
     BigDecimal(normalized).setScale(2, RoundingMode.UNNECESSARY).movePointRight(2).longValueExact()
-        .takeIf { it in 1..100000000L }
+        .takeIf { it in 1..10000000L }
 } catch (_: Exception) { null }
 fun initials(name: String): String = name.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.map { it.substring(0, it.offsetByCodePoints(0, 1)) }
     .take(2).joinToString("").uppercase()

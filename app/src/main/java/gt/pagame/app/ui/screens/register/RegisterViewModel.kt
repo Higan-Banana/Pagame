@@ -1,5 +1,6 @@
 package gt.pagame.app.ui.screens.register
 
+import gt.pagame.app.data.model.ActionRestrictions
 import gt.pagame.app.data.model.takeText
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -25,8 +26,9 @@ class RegisterViewModel : ViewModel() {
     fun register(onSuccess: () -> Unit) {
         val s = _uiState.value
         if (s.isLoading) return
-        if (s.fullName.isBlank() || s.email.isBlank() || s.password.length < 6 || s.password != s.confirmPassword) {
-            _uiState.update { it.copy(errorMessage = "Completa los campos y usa contraseñas iguales de al menos 6 caracteres") }; return
+        val blocked = ActionRestrictions.registration(s.fullName, s.email, s.password, s.confirmPassword)
+        if (blocked != null) {
+            _uiState.update { it.copy(errorMessage = blocked) }; return
         }
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         viewModelScope.launch {

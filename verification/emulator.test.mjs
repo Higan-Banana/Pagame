@@ -15,7 +15,7 @@ try{
    await environment.withSecurityRulesDisabled(async context=>{
     const db=context.firestore(),batch=writeBatch(db);for(const [path,data]of Object.entries(scenario.before))batch.set(doc(db,path),data);await batch.commit();
    });
-   const db=(scenario.uid?environment.authenticatedContext(scenario.uid):environment.unauthenticatedContext()).firestore(),batch=writeBatch(db);
+   const db=(scenario.uid?environment.authenticatedContext(scenario.uid,{auth_time:Math.floor(Date.now()/1000)-(scenario.authAgeSeconds??0)}):environment.unauthenticatedContext()).firestore(),batch=writeBatch(db);
    for(const [path,raw]of Object.entries(scenario.writes)){
     if(raw===null){batch.delete(doc(db,path));continue}
     const value=structuredClone(raw);

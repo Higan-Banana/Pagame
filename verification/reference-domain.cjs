@@ -89,7 +89,7 @@ function changeEvent(original, actor, action, input, now) {
       const includedIds = ids(input.includedIds);
       requireThat(includedIds.every(id => event.participantIds.includes(id)) && event.participantIds.includes(input.payerId),
         'El pagador y los participantes deben pertenecer al evento.');
-      requireThat(Number.isSafeInteger(input.amountMinor) && input.amountMinor > 0 && input.amountMinor <= 100000000,
+      requireThat(Number.isSafeInteger(input.amountMinor) && input.amountMinor > 0 && input.amountMinor <= 10000000,
         'El monto debe ser mayor que cero y tener como máximo dos decimales.', 'invalid-argument');
       const expense = {
         id: text(input.expenseId), title: text(input.title), amountMinor: input.amountMinor,

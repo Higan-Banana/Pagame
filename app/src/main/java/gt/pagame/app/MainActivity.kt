@@ -8,11 +8,12 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.SideEffect
 import gt.pagame.app.data.model.AppThemeMode
-import gt.pagame.app.data.repository.PagameRepository
+import androidx.lifecycle.viewmodel.compose.viewModel
+import gt.pagame.app.ui.navigation.AppViewModel
 import gt.pagame.app.ui.navigation.PagameNavGraph
 import gt.pagame.app.ui.theme.PagameTheme
 
@@ -21,7 +22,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val themeMode by PagameRepository.instance.theme.collectAsState()
+            val appViewModel: AppViewModel = viewModel()
+            val themeMode by appViewModel.theme.collectAsStateWithLifecycle()
             val isDark = when (themeMode) {
                 AppThemeMode.LIGHT -> false
                 AppThemeMode.DARK -> true
@@ -38,7 +40,7 @@ class MainActivity : ComponentActivity() {
             }
 
             PagameTheme(darkTheme = isDark) {
-                PagameNavGraph()
+                PagameNavGraph(appViewModel)
             }
         }
     }

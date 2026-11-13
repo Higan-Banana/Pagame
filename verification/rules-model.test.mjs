@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
 import {RulesModel} from './rules-model.mjs';
 import {initial,event,writes,update,apply,expense,rulesPath,profile,ledgers} from './fixtures.mjs';
 const rules=new RulesModel(rulesPath);
-const check=(before,writes,uid,allowed=true)=>{
- capturedCases.push({before:structuredClone(before),writes:structuredClone(writes),uid,allowed});
- const result=rules.authorize(before,writes,uid);
+const check=(before,writes,uid,allowed=true,authAgeSeconds=0)=>{
+ capturedCases.push({before:structuredClone(before),writes:structuredClone(writes),uid,allowed,authAgeSeconds});
+ const result=rules.authorize(before,writes,uid,{authAgeSeconds});
  assert.equal(result.allowed,allowed,JSON.stringify(result.reports,null,2));
  for (const r of result.reports) if (allowed) { assert.ok(r.expressions < 1000, `Local expression estimate: ${r.expressions}`); assert.ok(r.accesses <= 10, `Rule accesses: ${r.accesses}`); }
  return result;
@@ -282,4 +282,33 @@ test('both invitation directions: either party deletes within even uncached rule
   assert.ok(total<=20,`Uncached batch calls: ${total}`);
   console.log(`request ${id}, delete by ${actor}: ${total} uncached accesses`);
  }
+});
+
+
+test('account deletion has no custom session-age restriction but still requires ownership',()=>{
+ const docs=initial(),p=docs['profiles/a'];
+ const changes={'profiles/a':{...p,name:'Usuario eliminado',colorIndex:0,deleted:true},'users/a':null,['friendCodes/'+p.friendCode]:null};
+ check(docs,changes,'a',true,0);
+ check(docs,changes,'a',true,3600);
+ check(docs,changes,'a',true,86400);
+ check(docs,changes,'b',false,0);
+ check(docs,changes,null,false);
+});
+
+test('deleting private settings and code still requires an anonymized profile',()=>{
+ const docs=initial(),p=docs['profiles/a'];
+ check(docs,{'users/a':null},'a',false,3600);
+ check(docs,{['friendCodes/'+p.friendCode]:null},'a',false,3600);
+ docs['profiles/a']={...p,name:'Usuario eliminado',colorIndex:0,deleted:true};
+ check(docs,{'users/a':null,['friendCodes/'+p.friendCode]:null},'a',true,3600);
+});
+
+test('expense cap accepts 100000.00 and rejects one cent above it',()=>{
+ const docs=base();
+ const changes=update(docs,'a','addExpense',{...expense,amountMinor:10000000,includedIds:['a']});
+ check(docs,changes,'a');
+ const forged=structuredClone(changes);
+ // With only the payer included, balances and counts stay identical: only the amount limit fails.
+ forged['events/e'].expenses.expense1.amountMinor=10000001;
+ check(docs,forged,'a',false);
 });

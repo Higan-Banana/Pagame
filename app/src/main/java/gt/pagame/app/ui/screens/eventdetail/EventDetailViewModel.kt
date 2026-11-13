@@ -30,6 +30,12 @@ data class EventDetailUiState(
     val event: OnlineEvent? = null, val currency: Currency = Currency.GTQ, val currentUid: String = "",
     val isOrganizer: Boolean = false, val loading: Boolean = true
 ) {
+    val expenseSaveBlockedReason get() = when {
+        busy -> "Espera a que termine la operación en curso."
+        loading -> "Espera a que termine de cargar el evento."
+        event == null -> "No puedes guardar porque el evento ya no está disponible."
+        else -> ActionRestrictions.expense(newExpenseTitle, newExpenseAmount, newExpenseIncludedNames.size, amountInputError)
+    }
     val payerNames get() = listOf("Tú") + participants.map { it.name }
     val allParticipantNames get() = payerNames
     val addedParticipantNames get(): List<String> {
@@ -98,10 +104,13 @@ class EventDetailViewModel(application: Application, savedStateHandle: SavedStat
     fun toggleEventParticipant(friend: FriendItem) {
         if (_uiState.value.busy) return
         _uiState.update { s ->
-            val count = s.participantExpenseCounts[friend.id] ?: 0
-            if (friend.id in s.draftParticipantIds && count > 0) s.copy(participantRemovalBlockedMessage =
-                "No puedes quitar a ${friend.name} porque tiene $count gastos asociados. Edita o borra esos gastos primero.")
-            else s.copy(draftParticipantIds = if (friend.id in s.draftParticipantIds) s.draftParticipantIds - friend.id else s.draftParticipantIds + friend.id)
+            val reason = if (friend.id in s.draftParticipantIds) s.event?.let { ActionRestrictions.removeParticipant(it, friend.id) } else null
+            when {
+                !s.isOrganizer -> s.copy(participantRemovalBlockedMessage = "No puedes cambiar participantes porque solo el organizador tiene permiso.")
+                reason != null -> s.copy(participantRemovalBlockedMessage = "${friend.name}: $reason")
+                friend.id !in s.draftParticipantIds && s.draftParticipantIds.size >= 29 -> s.copy(participantRemovalBlockedMessage = "No puedes agregar más personas porque el evento admite hasta 30 participantes, incluido el organizador.")
+                else -> s.copy(draftParticipantIds = if (friend.id in s.draftParticipantIds) s.draftParticipantIds - friend.id else s.draftParticipantIds + friend.id)
+            }
         }
     }
     fun dismissParticipantRemovalBlockedMessage() { _uiState.update { it.copy(participantRemovalBlockedMessage = null) } }
@@ -112,7 +121,7 @@ class EventDetailViewModel(application: Application, savedStateHandle: SavedStat
     fun closeParticipantChangesConfirmation() { _uiState.update { it.copy(isParticipantChangesConfirmationOpen = false) } }
     fun confirmParticipantChanges() = action {
         val s = _uiState.value
-        command("updateParticipants", mapOf("participantIds" to (s.draftParticipantIds + s.event!!.ownerId).toList()))
+        command("updateParticipants", mapOf("participantIds" to (s.draftParticipantIds + (s.event ?: throw PagameValidationException("No puedes cambiar participantes porque el evento ya no está disponible.")).ownerId).toList()))
         _uiState.update { it.copy(isParticipantsSheetOpen = false, isParticipantChangesConfirmationOpen = false) }
     }
     fun openAddExpenseDialog() {
@@ -178,7 +187,7 @@ class EventDetailViewModel(application: Application, savedStateHandle: SavedStat
     fun updateNewAmount(value: String) {
         if (_uiState.value.busy) return
         val normalized = normalizedAmountInput(value)
-        _uiState.update { if (normalized == null) it.copy(amountInputError = "Solo números, hasta 2 decimales. Máximo: 1,000,000.00")
+        _uiState.update { if (normalized == null) it.copy(amountInputError = "Solo números, hasta 2 decimales. Máximo: 100,000.00")
             else it.copy(newExpenseAmount = normalized, amountInputError = null) }
         if (normalized != null) rememberExpenseDraft()
     }
@@ -198,12 +207,15 @@ class EventDetailViewModel(application: Application, savedStateHandle: SavedStat
     }
     fun saveExpense() = action {
         val s = _uiState.value
-        val amount = amountMinor(s.newExpenseAmount) ?: run { _uiState.update { it.copy(errorMessage = "Ingresa un monto entre 0.01 y 1,000,000.00, con hasta dos decimales") }; return@action }
-        val event = s.event ?: return@action
+        val blocked = ActionRestrictions.expense(s.newExpenseTitle, s.newExpenseAmount, s.newExpenseIncludedNames.size, s.amountInputError)
+        if (blocked != null) throw PagameValidationException(blocked)
+        val amount = amountMinor(s.newExpenseAmount)!!
+        val event = s.event ?: throw PagameValidationException("No puedes guardar el gasto porque el evento ya no está disponible.")
         val names = event.participantIds.associateBy(repository::displayName)
-        val payer = names[s.expensePayerName] ?: error("Pagador no disponible")
+        val payer = names[s.expensePayerName] ?: throw PagameValidationException("No puedes guardar el gasto porque el pagador ya no pertenece al evento. Selecciónalo de nuevo.")
         val included = s.newExpenseIncludedNames.mapNotNull { names[it] }
-        if (included.size != s.newExpenseIncludedNames.size || included.isEmpty()) error("Participantes no disponibles")
+        if (included.size != s.newExpenseIncludedNames.size || included.isEmpty())
+            throw PagameValidationException("No puedes guardar el gasto porque la lista de participantes cambió. Revisa la selección.")
         command(if (s.editingExpenseId == null) "addExpense" else "updateExpense", mapOf(
             "expenseId" to (s.editingExpenseId ?: expenseDraftId), "title" to s.newExpenseTitle,
             "amountMinor" to amount, "payerId" to payer, "includedIds" to included))
@@ -217,14 +229,13 @@ class EventDetailViewModel(application: Application, savedStateHandle: SavedStat
     }
     fun requestDeleteEvent() {
         val s = _uiState.value
+        val reason = ActionRestrictions.deleteEvent(s.event, s.currentUid)
         _uiState.update {
-            when {
-                !s.isOrganizer -> it.copy(deleteEventBlockedMessage = "No puedes borrar este evento porque no eres su creador.")
-                s.expenses.isNotEmpty() || s.event?.payments?.isNotEmpty() == true -> it.copy(deleteEventBlockedMessage = "No puedes borrar un evento con gastos o pagos registrados.")
-                else -> it.copy(isDeleteEventConfirmationOpen = true)
-            }
+            if (reason != null) it.copy(deleteEventBlockedMessage = reason)
+            else it.copy(isDeleteEventConfirmationOpen = true)
         }
     }
+
     fun dismissDeleteEventBlockedMessage() { _uiState.update { it.copy(deleteEventBlockedMessage = null) } }
     fun dismissDeleteEventConfirmation() { _uiState.update { it.copy(isDeleteEventConfirmationOpen = false) } }
     fun confirmDeleteEvent(onDeleted: () -> Unit) = action {
@@ -238,7 +249,12 @@ class EventDetailViewModel(application: Application, savedStateHandle: SavedStat
     fun rejectPayment(id: String) = action { command("rejectPayment", mapOf("paymentId" to id)) }
     private suspend fun command(name: String, data: Map<String, Any> = emptyMap()) { repository.command(name, data + ("eventId" to eventId)) }
     private fun action(block: suspend () -> Unit) {
-        if (_uiState.value.busy) return
+        if (_uiState.value.busy) {
+            _uiState.update { it.copy(errorMessage = "No puedes iniciar otra operación hasta que termine la que está en curso.") }; return
+        }
+        if (_uiState.value.loading || _uiState.value.event == null) {
+            _uiState.update { it.copy(errorMessage = "No puedes realizar esta operación porque el evento todavía está cargando o ya no está disponible.") }; return
+        }
         _uiState.update { it.copy(busy = true, errorMessage = null) }
         viewModelScope.launch {
             try { block() } catch (e: CancellationException) { throw e }

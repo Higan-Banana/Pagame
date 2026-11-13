@@ -71,7 +71,7 @@ object SparkEvents {
                     val amount = number(input["amountMinor"])
                     val included = ids(input["includedIds"])
                     val payer = (input["payerId"] as? String).orEmpty()
-                    check(amount in 1..100000000L, "Ingresa un monto positivo con hasta dos decimales.")
+                    check(amount in 1..10000000L, "Ingresa un monto entre 0.01 y 100,000.00, con hasta dos decimales.")
                     check(payer in event.participantIds && included.all { it in event.participantIds }, "El pagador y los participantes deben pertenecer al evento.")
                     val expense = mapOf("id" to itemId, "title" to title(input["title"]), "amountMinor" to amount,
                         "payerId" to payer, "includedIds" to included, "extraThrough" to (if (amount % included.size == 0L) "" else included[(amount % included.size).toInt() - 1]),

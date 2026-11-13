@@ -1,5 +1,7 @@
 package gt.pagame.app.ui.components
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -32,5 +34,5 @@ fun rememberInternetAvailable(): State<Boolean> {
             awaitClose { manager.unregisterNetworkCallback(callback) }
         }.distinctUntilChanged()
     }
-    return connectivity.collectAsState(initial = initial)
+    return connectivity.collectAsStateWithLifecycle(initialValue = initial)
 }

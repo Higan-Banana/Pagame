@@ -299,6 +299,13 @@ internal fun AddFriendDialog(
         }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+        BlockedActionHint(when {
+                busy -> "Espera a que termine de enviarse la solicitud."
+                loading -> "Espera a que termine la búsqueda del usuario."
+                error != null -> null // The lookup already displays its specific error.
+                friendName.isBlank() -> "No puedes enviar la solicitud hasta ingresar un código válido y encontrar a la persona."
+                else -> null
+            }, Modifier.padding(horizontal = Spacing.large, vertical = Spacing.small))
         Row(
             modifier = Modifier
                 .fillMaxWidth()

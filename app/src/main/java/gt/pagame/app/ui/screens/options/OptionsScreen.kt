@@ -21,7 +21,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import gt.pagame.app.data.model.Currency
 import gt.pagame.app.ui.components.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -49,7 +49,7 @@ fun OptionsScreen(
     onLogoutSuccess: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var currencyExpanded by remember { mutableStateOf(false) }
     var themeExpanded by remember { mutableStateOf(false) }
     var colorExpanded by remember { mutableStateOf(false) }
@@ -503,6 +503,11 @@ fun OptionsScreen(
                             enabled = !uiState.busy, shape = RoundedCornerShape(16.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
+                        BlockedActionHint(when {
+                            uiState.busy -> "Espera a que termine de guardarse el cambio."
+                            uiState.editedName.isBlank() -> "No puedes guardar el cambio porque el nombre no puede estar vacío."
+                            else -> null
+                        })
                         if (!connected) Text("Necesitás conexión para guardar el nombre.",
                             style = MaterialTheme.typography.bodySmall)
                     }
